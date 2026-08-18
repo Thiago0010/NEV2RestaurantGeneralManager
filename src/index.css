@@ -1,0 +1,174 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Dark brasa — charcoal / ember / brass / cream */
+    --background: 28 14% 7%;
+    --foreground: 38 44% 92%;
+    --card: 30 12% 11%;
+    --card-foreground: 38 44% 92%;
+    --popover: 30 12% 10%;
+    --popover-foreground: 38 44% 92%;
+    --primary: 22 71% 56%;
+    --primary-foreground: 28 30% 8%;
+    --secondary: 30 10% 16%;
+    --secondary-foreground: 38 44% 92%;
+    --muted: 30 10% 15%;
+    --muted-foreground: 28 18% 62%;
+    --accent: 45 67% 50%;
+    --accent-foreground: 28 30% 8%;
+    --destructive: 8 56% 50%;
+    --destructive-foreground: 38 44% 96%;
+    --success: 95 34% 42%;
+    --warning: 40 70% 52%;
+    --border: 30 12% 18%;
+    --input: 30 12% 18%;
+    --ring: 22 71% 56%;
+    --chart-1: 22 71% 56%;
+    --chart-2: 45 67% 50%;
+    --chart-3: 95 34% 42%;
+    --chart-4: 200 45% 55%;
+    --chart-5: 8 56% 50%;
+    --radius: 0.75rem;
+    --font-heading: "Fraunces", ui-sans-serif, system-ui, serif;
+    --font-body: "Inter", ui-sans-serif, system-ui, sans-serif;
+    --font-display: "Fraunces", ui-sans-serif, system-ui, serif;
+    --font-mono: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+    --sidebar-background: 28 16% 6%;
+    --sidebar-foreground: 38 30% 80%;
+    --sidebar-primary: 22 71% 56%;
+    --sidebar-primary-foreground: 28 30% 8%;
+    --sidebar-accent: 30 12% 14%;
+    --sidebar-accent-foreground: 38 44% 92%;
+    --sidebar-border: 30 12% 16%;
+    --sidebar-ring: 22 71% 56%;
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  html, body, #root {
+    height: 100%;
+  }
+
+  body {
+    @apply bg-background text-foreground font-body antialiased;
+    background-image:
+      radial-gradient(60rem 60rem at 110% -10%, hsl(22 71% 56% / 0.06), transparent 60%),
+      radial-gradient(50rem 50rem at -10% 110%, hsl(45 67% 50% / 0.05), transparent 60%);
+    background-attachment: fixed;
+  }
+
+  /* Respect reduced motion */
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+}
+
+@layer components {
+  .ember-text {
+    color: hsl(var(--primary));
+  }
+  .brass-text {
+    color: hsl(var(--accent));
+  }
+  .surface-card {
+    @apply bg-card border border-border rounded-2xl;
+  }
+  .glass-panel {
+    background: linear-gradient(180deg, hsl(30 12% 13% / 0.7), hsl(30 12% 9% / 0.7));
+    backdrop-filter: blur(8px);
+  }
+}
+
+/* Custom animations */
+@keyframes spin-smooth {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-spin-smooth {
+  animation: spin-smooth 0.8s linear infinite;
+}
+
+@keyframes pulse-gentle {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.animate-pulse-gentle {
+  animation: pulse-gentle 1.5s ease-in-out infinite;
+}
+
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  animation: fade-in-up 0.4s ease-out forwards;
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+.animate-shimmer {
+  background: linear-gradient(90deg, transparent, rgba(255,255,255,0.1), transparent);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+/* Focus visible for accessibility */
+.focus-visible-ring:focus-visible {
+  @apply outline-none ring-2 ring-ring ring-offset-2 ring-offset-background;
+}
+
+/* Input validation states */
+.input-valid {
+  @apply border-green-500/50 focus:ring-green-500/20;
+}
+
+.input-invalid {
+  @apply border-destructive/50 focus:ring-destructive/20;
+}
+
+/* Placeholder visibility fix */
+input::placeholder,
+textarea::placeholder {
+  color: hsl(var(--muted-foreground) / 0.7) !important;
+}
+input:focus::placeholder,
+textarea:focus::placeholder {
+  color: hsl(var(--muted-foreground) / 0.4) !important;
+}
+
+/* Password strength meter */
+.strength-meter {
+  @apply h-1.5 rounded-full transition-all duration-300 ease-out;
+}
+
+.strength-0 { @apply bg-transparent; }
+.strength-1 { @apply bg-red-500 w-1/4; }
+.strength-2 { @apply bg-yellow-500 w-2/4; }
+.strength-3 { @apply bg-yellow-500 w-3/4; }
+.strength-4 { @apply bg-green-500 w-full; }
