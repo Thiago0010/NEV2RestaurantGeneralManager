@@ -1,12 +1,12 @@
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/restaurant-context';
-import { formatCurrency, timeAgo, todayISO } from '@/lib/format';
-import { refreshOrderTotals } from '@/lib/orders';
+import { publicApi } from '@/api/client';
+import { formatCurrency, timeAgo } from '@/lib/format';
 import { Flame, Plus, Minus, ShoppingCart, Bell, Check, Loader2, ArrowLeft, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { Textarea } from '@/components/ui/textarea';
 import { useToast } from '@/components/ui/use-toast';
+import Footer from '@/components/Footer';
 
 const STEPS = [
   { key: 'received', label: 'Recebido' },
@@ -34,21 +34,31 @@ export default function CustomerMenu() {
   const [error, setError] = useState('');
 
   const load = useCallback(async () => {
+    setError('');
+    try {
       const r = await api.restaurant.getPublic(slug);
       if (!r) { setError('Estabelecimento não encontrado.'); setLoading(false); return; }
       const rest = r;
       setRestaurant(rest);
-      const [cats, prods, tables] = await Promise.all([
+      const [cats, prods, tableData] = await Promise.all([
         api.Category.filter({ restaurant_id: rest.id }, 'sort_order', 500),
         api.Product.filter({ restaurant_id: rest.id, available: true }, '-created_date', 1000),
-        api.Table.filter({ restaurant_id: rest.id, number: num }, 'number', 50),
+        publicApi.getTable(rest.id, num),
       ]);
       setCategories(cats);
       setProducts(prods);
-      if (tables.length) setTable(tables[0]); else setError('Mesa não encontrada.');
+      if (tableData) {
+        setTable(tableData);
+      } else {
+        setError(`Mesa ${num} não encontrada neste estabelecimento.`);
+      }
       if (cats.length) setActiveCat(cats[0].id);
+    } catch (e) {
+      setError(e?.message || 'Não foi possível carregar o cardápio. Verifique sua conexão.');
+    } finally {
       setLoading(false);
-    }, [slug, num]);
+    }
+  }, [slug, num]);
 
   useEffect(() => { load(); }, [load]);
 
@@ -57,9 +67,15 @@ export default function CustomerMenu() {
       if (!table) return;
       let active = true;
       const poll = async () => {
-        const o = await api.Order.filter({ restaurant_id: restaurant?.id, table_id: table.id, status: { $in: ['received', 'preparing', 'ready', 'delivered'] } }, '-created_date', 5);
+        const o = await api.Order.getPublicActive(restaurant?.id, table.id);
         if (!active) return;
-        if (o.length) { setOrder(o[0]); setOrderItems(await api.OrderItem.filter({ order_id: o[0].id })); }
+        if (o) {
+          setOrder(o);
+          // `getPublicActive` already returns the order with its items embedded
+          // (backend uses selectinload). No second call needed — and the
+          // authenticated `GET /orders/{id}` returns 404 for anonymous clients.
+          setOrderItems(o.items || []);
+        }
       };
       poll();
       const unsub = api.Order.subscribe(poll);
@@ -83,47 +99,52 @@ export default function CustomerMenu() {
   });
 
   const sendOrder = async () => {
-      if (!table || !restaurant || cartList.length === 0) return;
-      setSending(true);
-      try {
-        let orderId = table.current_order_id;
-        const tax = restaurant.service_tax_percent || 0;
-        if (orderId) {
-          // append to existing open order
-          await Promise.all(cartList.map((i) => api.OrderItem.create({
-            restaurant_id: restaurant.id, order_id: orderId, product_id: i.id, product_name: i.name,
-            quantity: i.qty, unit_price: i.price, notes: i.note,
-          })));
-          await refreshOrderTotals(orderId, tax);
-        } else {
-          const o = await api.Order.create({
-            restaurant_id: restaurant.id, table_id: table.id, table_number: table.number,
-            status: 'received', subtotal: 0, service_tax: 0, total: 0,
-          });
-          orderId = o.id;
-          await Promise.all(cartList.map((i) => api.OrderItem.create({
-            restaurant_id: restaurant.id, order_id: o.id, product_id: i.id, product_name: i.name,
-            quantity: i.qty, unit_price: i.price, notes: i.note,
-          })));
-          await refreshOrderTotals(o.id, tax);
-          await api.Table.update(table.id, { status: 'occupied', current_order_id: o.id, opened_at: todayISO() });
+        if (!table || !restaurant || cartList.length === 0) return;
+        setSending(true);
+        try {
+          const tax = restaurant.service_tax_percent || 0;
+          const itemsPayload = cartList.map((i) => ({
+            product_id: i.id,
+            product_name: i.name,
+            quantity: i.qty,
+            unit_price: i.price,
+            notes: i.note,
+          }));
+          let orderId = table.current_order_id;
+          if (orderId) {
+            // append to existing open order using public endpoint
+            await api.Order.addItemsPublic(restaurant.id, orderId, itemsPayload);
+          } else {
+            // create order with items in one shot using public endpoint
+            const o = await api.Order.createPublic(restaurant.id, {
+              table_id: table.id,
+              table_number: table.number,
+              items: itemsPayload,
+            });
+            orderId = o.id;
+          }
+          const updated = await api.Order.getPublicActive(restaurant.id, table.id);
+          setOrder(updated);
+          setOrderItems(updated?.items || []);
+          setCart({}); setNotes({});
+          setView('tracking');
+          toast({ title: 'Pedido enviado!', description: `Mesa ${table.number}` });
+        } catch (e) {
+          toast({ title: 'Não foi possível enviar o pedido', description: e?.message, variant: 'destructive' });
+        } finally {
+          setSending(false);
         }
-        setOrder(await api.Order.get(orderId));
-        setOrderItems(await api.OrderItem.filter({ order_id: orderId }));
-        setCart({}); setNotes({});
-        setView('tracking');
-        toast({ title: 'Pedido enviado!', description: `Mesa ${table.number}` });
-      } catch (e) {
-        toast({ title: 'Não foi possível enviar o pedido', description: e?.message, variant: 'destructive' });
-      } finally {
-        setSending(false);
-      }
-    };
+      };
 
   const callWaiter = async (type) => {
-      await api.ServiceCall.create({ restaurant_id: restaurant.id, table_id: table.id, table_number: table.number, type, status: 'pending' });
-      toast({ title: 'Garçom chamado', description: 'Alguém já vai até a mesa.' });
-    };
+        try {
+          await api.ServiceCall.createPublic(restaurant.id, { table_id: table.id, table_number: table.number, type });
+          const label = type === 'help' ? 'Ajuda' : type === 'bill' ? 'Conta' : 'Pedido';
+          toast({ title: `Chamado enviado: ${label}`, description: `Mesa ${table.number} · aguarde o garçom.` });
+        } catch (e) {
+          toast({ title: 'Não foi possível chamar o garçom', description: e?.message, variant: 'destructive' });
+        }
+      };
 
   if (loading) return <div className="grid min-h-screen place-items-center bg-background"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>;
   if (error) return (
@@ -141,7 +162,7 @@ export default function CustomerMenu() {
     const stepIdx = STEPS.findIndex((s) => s.key === order.status);
     return (
       <div className="min-h-screen bg-background">
-        <Header restaurant={restaurant} tableNumber={table.number} onBack={() => setView('menu')} />
+        <Header restaurant={restaurant} tableNumber={table.number} onBack={() => setView('menu')} onCallWaiter={callWaiter} />
         <div className="mx-auto max-w-lg space-y-6 p-4">
           <div className="surface-card p-6 text-center">
             <div className="mx-auto grid h-14 w-14 place-items-center rounded-full bg-success/15"><Check className="h-7 w-7 text-success" /></div>
@@ -188,6 +209,17 @@ export default function CustomerMenu() {
     <div className="min-h-screen bg-background">
       <Header restaurant={restaurant} tableNumber={table.number} onBack={() => navigate('/')} />
       <div className="mx-auto max-w-3xl p-4 pb-28">
+        <div className="surface-card mb-4 flex items-center justify-between gap-3 p-4">
+          <div>
+            <p className="text-xs uppercase tracking-wide text-muted-foreground">Você está na</p>
+            <p className="font-heading text-2xl font-semibold" style={{ color: accent }}>
+              Mesa {table.number}
+            </p>
+          </div>
+          <Button size="sm" variant="outline" onClick={() => callWaiter('help')}>
+            <Bell className="h-4 w-4" /> Chamar garçom
+          </Button>
+        </div>
         {restaurant.welcome_message && (
           <div className="surface-card mb-4 p-5" style={{ borderColor: `${accent}40` }}>
             <p className="text-sm" style={{ color: accent }}>{restaurant.welcome_message}</p>
@@ -279,19 +311,28 @@ export default function CustomerMenu() {
   );
 }
 
-function Header({ restaurant, tableNumber, onBack }) {
+function Header({ restaurant, tableNumber, onBack, onCallWaiter }) {
   return (
     <header className="sticky top-0 z-10 border-b border-border bg-background/90 backdrop-blur">
-      <div className="mx-auto flex max-w-3xl items-center justify-between p-4">
-        <button onClick={onBack} className="flex items-center gap-2">
-          <div className="grid h-10 w-10 place-items-center rounded-xl" style={{ background: `${restaurant.accent_color || '#e07a3c'}22` }}>
+      <div className="mx-auto flex max-w-3xl items-center justify-between gap-3 p-4">
+        <button onClick={onBack} className="flex items-center gap-2 min-w-0">
+          <div className="grid h-10 w-10 shrink-0 place-items-center rounded-xl" style={{ background: `${restaurant.accent_color || '#e07a3c'}22` }}>
             <Flame className="h-5 w-5" style={{ color: restaurant.accent_color || '#e07a3c' }} />
           </div>
-          <div>
-            <p className="font-heading text-base font-semibold leading-tight">{restaurant.name}</p>
-            <p className="text-xs text-muted-foreground">Mesa {tableNumber}</p>
+          <div className="min-w-0 text-left">
+            <p className="truncate font-heading text-base font-semibold leading-tight">{restaurant.name}</p>
+            <p className="text-xs text-muted-foreground">
+              <span className="inline-flex items-center gap-1 rounded-full bg-primary/10 px-2 py-0.5 font-medium text-primary">
+                Mesa {tableNumber}
+              </span>
+            </p>
           </div>
         </button>
+        {onCallWaiter && (
+          <Button size="sm" variant="secondary" onClick={() => onCallWaiter('help')}>
+            <Bell className="h-4 w-4" /> Chamar
+          </Button>
+        )}
       </div>
     </header>
   );

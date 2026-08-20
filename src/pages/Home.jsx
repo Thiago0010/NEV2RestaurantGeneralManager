@@ -6,6 +6,7 @@ import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell
 } from 'recharts';
 import { DollarSign, ShoppingBag, TrendingUp, Utensils, Clock, Bell, Loader2, Flame } from 'lucide-react';
+import Footer from '@/components/Footer';
 
 const RANGES = [
   { key: 'today', label: 'Hoje' },
@@ -181,6 +182,7 @@ export default function Home() {
           )}
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

@@ -16,6 +16,17 @@ dist
 dist-ssr
 *.local
 
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv/
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json
@@ -30,3 +41,8 @@ dist-ssr
 .env
 .vite
 base44/.app.jsonc
+
+# Database
+*.db
+*.sqlite
+*.sqlite3

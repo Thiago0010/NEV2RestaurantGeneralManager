@@ -37,7 +37,7 @@ async def create_service_call(
 async def list_service_calls(
     status: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(200, ge=1, le=500),
+    page_size: int = Query(200, ge=1, le=1000),
     restaurant: Restaurant = Depends(get_restaurant_from_user),
     db: AsyncSession = Depends(get_db)
 ):

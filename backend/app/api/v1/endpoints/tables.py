@@ -31,7 +31,7 @@ async def create_tables(
 async def list_tables(
     status: Optional[str] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(500, ge=1, le=500),
+    page_size: int = Query(500, ge=1, le=1000),
     include_qr: bool = Query(False),  # NOVO: opcional
     restaurant: Restaurant = Depends(get_restaurant_from_user),
     db: AsyncSession = Depends(get_db)

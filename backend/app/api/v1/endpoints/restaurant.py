@@ -60,12 +60,15 @@ async def create_restaurant_onboarding(
     restaurant = Restaurant(**data.model_dump())
     db.add(restaurant)
     await db.flush()
-    
+    # Ensure server-managed columns (created_at/updated_at) are populated eagerly
+    # before Pydantic serialization — otherwise we hit MissingGreenlet.
+    await db.refresh(restaurant)
+
     # Associate user with restaurant
     current_user.restaurant_id = restaurant.id
     current_user.role = UserRole.OWNER
     await db.flush()
-    
+
     # Seed default categories and tables in a single transaction
     try:
         # Create default categories

@@ -31,7 +31,7 @@ async def list_products(
     category_id: Optional[UUID] = None,
     available_only: bool = False,
     page: int = Query(1, ge=1),
-    page_size: int = Query(100, ge=1, le=500),
+    page_size: int = Query(100, ge=1, le=1000),
     restaurant: Restaurant = Depends(get_restaurant_from_user),
     db: AsyncSession = Depends(get_db)
 ):

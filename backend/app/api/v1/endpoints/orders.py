@@ -51,7 +51,7 @@ async def list_orders(
     status: Optional[List[str]] = Query(None),
     table_id: Optional[UUID] = None,
     page: int = Query(1, ge=1),
-    page_size: int = Query(100, ge=1, le=500),
+    page_size: int = Query(100, ge=1, le=1000),
     created_date_gte: Optional[str] = Query(None, description="Filter orders created on or after this date (ISO format)"),
     created_date_lte: Optional[str] = Query(None, description="Filter orders created on or before this date (ISO format)"),
     restaurant: Restaurant = Depends(get_restaurant_from_user),

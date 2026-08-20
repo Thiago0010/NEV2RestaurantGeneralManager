@@ -199,6 +199,34 @@ VITE_API_URL=http://localhost:8000/api/v1
 5. Use um proxy reverso (nginx) na frente
 6. Configure backups automáticos do PostgreSQL
 
+
+## Histórico de Bugs Resolvidos
+
+### ✅ Bug 1+3 — `GET /api/v1/orders?status=[object Object]` retornando **400 Bad Request**
+
+**Causa:** o `URLSearchParams(params).toString()` no cliente chamava `toString()` em cada valor, então quando `status` era um array (ou caía um objeto) virava literalmente `[object+Object]` na URL, e o backend rejeitava com 400.
+
+**Correção (`src/api/client.js`):** substituído por um helper `buildQuery(params)` que serializa arrays via `URLSearchParams.append(key, value)` (gerando `status=received&status=preparing`), ignora `null`/`undefined` e pula objetos aninhados em vez de convertê-los via `toString()`.
+
+---
+
+### ✅ Bug 2 — `GET /api/v1/products?page_size=1000` retornando **422 Unprocessable Entity**
+
+**Causa:** os endpoints validavam `page_size: int = Query(..., le=500)`. O frontend envia `page_size=1000`, gerando 422 antes de chegar no service.
+
+**Correção (`backend/app/api/v1/endpoints/*.py`):** aumentado o limite de `page_size` para `le=1000` em **products**, **orders**, **categories**, **service_calls** e **tables**. Agora o frontend pode puxar a lista completa sem erro de validação.
+
+---
+
+### ✅ Bug 4 — `PUT /api/v1/restaurant/me` quebrando com `MissingGreenlet: greenlet_spawn has not been called`
+
+**Causa:** o `Restaurant` (e outros modelos) tem `updated_at = Column(..., server_default=func.now(), onupdate=func.now())`. Após `db.flush()`, o SQLAlchemy ainda não havia materializado o novo `updated_at` no objeto — e quando o Pydantic (`from_attributes=True`) tentou serializar, disparou lazy-load fora do greenlet async, levantando `MissingGreenlet`.
+
+**Correção (`backend/app/services/crud.py` + `backend/app/api/v1/endpoints/restaurant.py`):**
+- Adicionado `await db.refresh(obj)` após `db.flush()` em todos os `create`/`update` dos services (`Restaurant`, `Category`, `Product`, `Table`, `Order`, `Employee`, `ServiceCall`).
+- Idem em `create_restaurant_onboarding` no endpoint.
+- Isso garante que colunas gerenciadas pelo servidor (`created_at`, `updated_at`, `closed_at`) sejam carregadas no contexto async **antes** da serialização Pydantic, eliminando o `MissingGreenlet`.
+
 ## Licença
 
 Proprietário - NEV2

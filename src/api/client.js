@@ -1,5 +1,5 @@
 // API Client for NEV2 Restaurant Manager Backend
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/';
 const DEFAULT_TIMEOUT = 15000; // 15 seconds
 
 class ApiError extends Error {
@@ -11,9 +11,32 @@ class ApiError extends Error {
   }
 }
 
+// Builds a query string from a params object, supporting arrays
+// (e.g. { status: ['received', 'preparing'] } -> status=received&status=preparing)
+// without converting values via `toString()` (which would yield `[object Object]`
+// when an object accidentally slips into a list).
+function buildQuery(params) {
+  const search = new URLSearchParams();
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value === undefined || value === null) return;
+    if (Array.isArray(value)) {
+      value.forEach(v => {
+        if (v === undefined || v === null) return;
+        if (typeof v === 'object') return; // ignore unexpected objects
+        search.append(key, String(v));
+      });
+    } else if (typeof value === 'object') {
+      return; // ignore unexpected nested objects
+    } else {
+      search.append(key, String(value));
+    }
+  });
+  return search.toString();
+}
+
 async function request(endpoint, options = {}) {
   const url = `${API_BASE_URL}${endpoint}`;
-  
+
   const headers = {
     'Content-Type': 'application/json',
     ...options.headers,
@@ -134,7 +157,7 @@ export const restaurantApi = {
 // Category endpoints
 export const categoryApi = {
   list: (params = {}) => {
-    const query = new URLSearchParams(params).toString();
+    const query = buildQuery(params);
     return request(`/categories?${query}`);
   },
   
@@ -158,7 +181,7 @@ export const categoryApi = {
 // Product endpoints
 export const productApi = {
   list: (params = {}) => {
-    const query = new URLSearchParams(params).toString();
+    const query = buildQuery(params);
     return request(`/products?${query}`);
   },
   
@@ -186,7 +209,7 @@ export const productApi = {
 // Table endpoints
 export const tableApi = {
   list: (params = {}) => {
-    const query = new URLSearchParams(params).toString();
+    const query = buildQuery(params);
     return request(`/tables?${query}`);
   },
   
@@ -214,8 +237,11 @@ export const tableApi = {
 // Order endpoints
 export const orderApi = {
   list: (params = {}) => {
-    const query = new URLSearchParams(params).toString();
-    return request(`/orders?${query}`);
+    // Accept either a params object (legacy callers) or a pre-built query
+    // string (used by `api.Order.filter`, which already handles arrays and
+    // base44-style `$in` operators and serializes them into a raw query).
+    const query = typeof params === 'string' ? params : buildQuery(params);
+    return request(`/orders${query ? `?${query}` : ''}`);
   },
   
   getActive: () => request('/orders/active'),
@@ -258,7 +284,7 @@ export const orderApi = {
 // Employee endpoints
 export const employeeApi = {
   list: (params = {}) => {
-    const query = new URLSearchParams(params).toString();
+    const query = buildQuery(params);
     return request(`/employees?${query}`);
   },
   
@@ -286,7 +312,7 @@ export const employeeApi = {
 // Service Call endpoints
 export const serviceCallApi = {
   list: (params = {}) => {
-    const query = new URLSearchParams(params).toString();
+    const query = buildQuery(params);
     return request(`/service-calls?${query}`);
   },
   

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/restaurant-context';
 import { useRestaurant, userRestaurantId } from '@/lib/restaurant-context';
-import { formatCurrency, timeAgo, todayISO } from '@/lib/format';
+import { formatCurrency, timeAgo } from '@/lib/format';
 import { refreshOrderTotals } from '@/lib/orders';
 import { Plus, Loader2, Bell, ClipboardList, LayoutGrid, Check, X } from 'lucide-react';
 import { Button } from '@/components/ui/button';
@@ -51,10 +51,15 @@ function WaiterTables() {
   useEffect(() => { if (rid) load(); /* eslint-disable-next-line */ }, [rid]);
 
   const openTable = async (t) => {
+    // Backend `OrderCreate` requires `items`. Passing an empty array opens the
+    // table without products; the OrderService also flips the table to
+    // `occupied` and sets `current_order_id` in the same transaction, so
+    // there is no need to update the table afterwards.
     const order = await api.Order.create({
-      restaurant_id: rid, table_id: t.id, table_number: t.number, status: 'received', subtotal: 0, service_tax: 0, total: 0,
+      table_id: t.id,
+      table_number: t.number,
+      items: [],
     });
-    await api.Table.update(t.id, { status: 'occupied', current_order_id: order.id, opened_at: todayISO() });
     toast({ title: `Mesa ${t.number} aberta` });
     load();
   };

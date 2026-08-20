@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, ConfigDict
+from pydantic import BaseModel, EmailStr, ConfigDict, field_validator
 from typing import Optional, List
 from datetime import datetime
 from uuid import UUID
@@ -241,17 +241,37 @@ class TableRead(TableBase):
 
 # Order schemas
 class OrderItemCreate(BaseModel):
-    product_id: UUID
+    # product_id is nullable on the OrderItem model (custom/misc items from the
+    # public menu may not reference a Product row), so the schema accepts it as
+    # optional too. Empty strings (e.g. from a form whose field was blank) are
+    # normalized to None before validation to avoid a spurious 422.
+    product_id: Optional[UUID] = None
     product_name: str
     quantity: int = 1
     unit_price: float
     notes: Optional[str] = None
 
+    @field_validator("product_id", mode="before")
+    @classmethod
+    def _empty_uuid_to_none(cls, v):
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
+
 
 class OrderCreate(BaseModel):
-    table_id: UUID
+    # table_id is nullable on the Order model as well (e.g. takeaway without a
+    # seated table); accept empty strings as None to avoid 422s from the front.
+    table_id: Optional[UUID] = None
     table_number: str
     items: List[OrderItemCreate]
+
+    @field_validator("table_id", mode="before")
+    @classmethod
+    def _empty_uuid_to_none(cls, v):
+        if isinstance(v, str) and not v.strip():
+            return None
+        return v
 
 
 class OrderUpdate(BaseModel):

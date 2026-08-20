@@ -155,38 +155,55 @@ export const api = {
   },
 
   // Orders
-  Order: {
-    filter: (params, sort, limit) => {
-      const query = new URLSearchParams();
-      if (params?.table_id) query.set('table_id', params.table_id);
-      if (params?.status) {
-        if (Array.isArray(params.status)) {
-          params.status.forEach(s => query.append('status', s));
-        } else {
-          query.set('status', params.status);
+    Order: {
+      filter: (params, sort, limit) => {
+        // `params.status` may be a plain string, an array, or a base44-style
+        // `{ $in: [...] }` operator object. Normalize it into an array so the
+        // backend receives one `status=` per value (FastAPI List[str] query).
+        const query = new URLSearchParams();
+        if (params?.table_id) query.set('table_id', params.table_id);
+        if (params?.status) {
+          let statuses = null;
+          if (Array.isArray(params.status)) {
+            statuses = params.status;
+          } else if (typeof params.status === 'object' && params.status !== null) {
+            if (Array.isArray(params.status.$in)) statuses = params.status.$in;
+          } else if (typeof params.status === 'string') {
+            statuses = [params.status];
+          }
+          if (statuses && statuses.length) {
+            statuses.forEach((s) => query.append('status', String(s)));
+          }
         }
-      }
-      if (params?.created_date) {
-        if (typeof params.created_date === 'object') {
-          if (params.created_date.$gte) query.set('created_date_gte', params.created_date.$gte);
-          if (params.created_date.$lte) query.set('created_date_lte', params.created_date.$lte);
-        } else {
-          query.set('created_date', params.created_date);
+        if (params?.created_date) {
+          if (typeof params.created_date === 'object') {
+            if (params.created_date.$gte) query.set('created_date_gte', params.created_date.$gte);
+            if (params.created_date.$lte) query.set('created_date_lte', params.created_date.$lte);
+          } else {
+            query.set('created_date', params.created_date);
+          }
         }
-      }
-      if (sort) query.set('sort', sort);
-      if (limit) query.set('page_size', limit);
-      return listAsArray(orderApi.list(Object.fromEntries(query)));
+        if (params?.created_date_gte) query.set('created_date_gte', params.created_date_gte);
+        if (params?.created_date_lte) query.set('created_date_lte', params.created_date_lte);
+        if (sort) query.set('sort', sort);
+        if (limit) query.set('page_size', limit);
+        // Pass the query string directly (not Object.fromEntries, which would
+        // collapse duplicate `status=` keys into a single value).
+        return listAsArray(orderApi.list(query.toString()));
+      },
+      create: (data) => orderApi.create(data),
+      update: (id, data) => orderApi.update(id, data),
+      get: (id) => orderApi.get(id),
+      subscribe: (callback) => {
+        // WebSocket subscription would go here
+        return () => {};
+      },
+      addItems: (orderId, items) => orderApi.addItems(orderId, items),
+      // Public endpoints (no auth - for customer menu)
+      createPublic: (restaurantId, data) => orderApi.createPublic(restaurantId, data),
+      addItemsPublic: (restaurantId, orderId, items) => orderApi.addItemsPublic(restaurantId, orderId, items),
+      getPublicActive: (restaurantId, tableId) => orderApi.getPublicActive(restaurantId, tableId),
     },
-    create: (data) => orderApi.create(data),
-    update: (id, data) => orderApi.update(id, data),
-    get: (id) => orderApi.get(id),
-    subscribe: (callback) => {
-      // WebSocket subscription would go here
-      return () => {};
-    },
-    addItems: (orderId, items) => orderApi.addItems(orderId, items),
-  },
 
   // OrderItem — items come from `Order.items` (included via selectinload).
   // To keep base44-like compatibility we expose filter/create that delegate to
@@ -232,22 +249,24 @@ export const api = {
   },
 
   // Service Calls
-  ServiceCall: {
-    filter: (params, sort, limit) => {
-      const query = new URLSearchParams();
-      if (params?.restaurant_id) query.set('restaurant_id', params.restaurant_id);
-      if (params?.status) query.set('status', params.status);
-      if (sort) query.set('sort', sort);
-      if (limit) query.set('page_size', limit);
-      return listAsArray(serviceCallApi.list(Object.fromEntries(query)));
+    ServiceCall: {
+      filter: (params, sort, limit) => {
+        const query = new URLSearchParams();
+        if (params?.restaurant_id) query.set('restaurant_id', params.restaurant_id);
+        if (params?.status) query.set('status', params.status);
+        if (sort) query.set('sort', sort);
+        if (limit) query.set('page_size', limit);
+        return listAsArray(serviceCallApi.list(Object.fromEntries(query)));
+      },
+      create: (data) => serviceCallApi.create(data),
+      // Public endpoint (no auth - for customer menu)
+      createPublic: (restaurantId, data) => serviceCallApi.createPublic(restaurantId, data),
+      update: (id, data) => serviceCallApi.update(id, data),
+      get: (id) => Promise.resolve(null),
+      subscribe: (callback) => {
+        return () => {};
+      },
     },
-    create: (data) => serviceCallApi.create(data),
-    update: (id, data) => serviceCallApi.update(id, data),
-    get: (id) => Promise.resolve(null),
-    subscribe: (callback) => {
-      return () => {};
-    },
-  },
 
   // Auth — wraps API client so callers get a single point that persists the
   // token and (when used inside the provider) syncs the user into the context.

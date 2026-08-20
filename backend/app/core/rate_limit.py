@@ -11,9 +11,9 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
     def __init__(
         self,
         app: ASGIApp,
-        requests_per_minute: int = 60,
-        requests_per_hour: int = 1000,
-        burst_limit: int = 10,
+        requests_per_minute: int = 6000,
+        requests_per_hour: int = 900000,
+        burst_limit: int = 100,
     ):
         super().__init__(app)
         self.requests_per_minute = requests_per_minute

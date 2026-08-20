@@ -33,7 +33,10 @@ class RestaurantService:
         restaurant = Restaurant(**data.model_dump())
         self.db.add(restaurant)
         await self.db.flush()
-        
+        # Refresh so server-default columns (created_at, updated_at) are populated
+        # in the current async context before Pydantic serialization.
+        await self.db.refresh(restaurant)
+
         # Create owner user if not exists
         # This is handled in auth service
         return restaurant
@@ -54,12 +57,16 @@ class RestaurantService:
         restaurant = await self.get_by_id(restaurant_id)
         if not restaurant:
             return None
-        
+
         update_data = data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(restaurant, field, value)
-        
+
         await self.db.flush()
+        # Refresh to ensure server-managed columns (updated_at via onupdate=func.now())
+        # are loaded eagerly inside this async context. Otherwise Pydantic's
+        # from_attributes triggers a lazy-load -> MissingGreenlet at serialization.
+        await self.db.refresh(restaurant)
         return restaurant
     
     async def delete(self, restaurant_id: UUID) -> bool:
@@ -80,16 +87,21 @@ class CategoryService:
             select(func.max(Category.sort_order)).where(Category.restaurant_id == restaurant_id)
         )
         max_order = result.scalar() or 0
-        
+
+        payload = data.model_dump()
+        # If client didn't explicitly set sort_order (or sent 0), auto-assign next slot
+        if not payload.get("sort_order"):
+            payload["sort_order"] = max_order + 1
+
         category = Category(
-            **data.model_dump(),
+            **payload,
             restaurant_id=restaurant_id,
-            sort_order=data.sort_order or max_order + 1
         )
         self.db.add(category)
         await self.db.flush()
+        await self.db.refresh(category)
         return category
-    
+
     async def bulk_create(self, items: List[CategoryCreate], restaurant_id: UUID) -> List[Category]:
         """Create multiple categories in a single transaction"""
         # Get current max sort_order
@@ -97,18 +109,23 @@ class CategoryService:
             select(func.max(Category.sort_order)).where(Category.restaurant_id == restaurant_id)
         )
         max_order = result.scalar() or 0
-        
+
         categories = []
         for i, item in enumerate(items):
+            payload = item.model_dump()
+            if not payload.get("sort_order"):
+                payload["sort_order"] = max_order + 1 + i
+
             category = Category(
-                **item.model_dump(),
+                **payload,
                 restaurant_id=restaurant_id,
-                sort_order=item.sort_order or max_order + 1 + i
             )
             self.db.add(category)
             categories.append(category)
-        
+
         await self.db.flush()
+        for c in categories:
+            await self.db.refresh(c)
         return categories
     
     async def get_by_id(self, category_id: UUID, restaurant_id: UUID) -> Optional[Category]:
@@ -139,12 +156,13 @@ class CategoryService:
         category = await self.get_by_id(category_id, restaurant_id)
         if not category:
             return None
-        
+
         update_data = data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(category, field, value)
-        
+
         await self.db.flush()
+        await self.db.refresh(category)
         return category
     
     async def delete(self, category_id: UUID, restaurant_id: UUID) -> bool:
@@ -201,12 +219,13 @@ class ProductService:
         product = await self.get_by_id(product_id, restaurant_id)
         if not product:
             return None
-        
+
         update_data = data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(product, field, value)
-        
+
         await self.db.flush()
+        await self.db.refresh(product)
         return product
     
     async def delete(self, product_id: UUID, restaurant_id: UUID) -> bool:
@@ -307,12 +326,13 @@ class TableService:
         table = await self.get_by_id(table_id, restaurant_id)
         if not table:
             return None
-        
+
         update_data = data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(table, field, value)
-        
+
         await self.db.flush()
+        await self.db.refresh(table)
         return table
     
     async def delete(self, table_id: UUID, restaurant_id: UUID) -> bool:
@@ -342,9 +362,13 @@ class OrderService:
         self.db = db
     
     async def create(self, data: OrderCreate, restaurant_id: UUID, service_tax_percent: float = 10.0) -> Order:
-        # Calculate totals
-        subtotal = sum(item.unit_price * item.quantity for item in data.items)
-        service_tax = round(subtotal * (service_tax_percent / 100), 2)
+        # Calculate totals. Both `item.unit_price` and `service_tax_percent`
+        # come from Numeric columns, so they can be Decimal in the in-memory
+        # model — coerce to float up front so arithmetic stays uniform (a
+        # `Decimal * float` raises TypeError).
+        tax_pct = float(service_tax_percent)
+        subtotal = float(sum(item.unit_price * item.quantity for item in data.items))
+        service_tax = round(subtotal * (tax_pct / 100), 2)
         total = round(subtotal + service_tax, 2)
         
         order = Order(
@@ -384,8 +408,12 @@ class OrderService:
             table.opened_at = today_iso()
         
         await self.db.flush()
-        return order
-    
+        # Eager-load `items` (and other relations) before returning so callers
+        # can serialize via Pydantic without triggering lazy-load I/O outside
+        # the async context — otherwise `OrderRead.model_validate(order)`
+        # raises `MissingGreenlet`.
+        return await self.get_by_id(order.id, restaurant_id)
+
     async def get_by_id(self, order_id: UUID, restaurant_id: UUID) -> Optional[Order]:
         result = await self.db.execute(
             select(Order)
@@ -428,18 +456,18 @@ class OrderService:
         order = await self.get_by_id(order_id, restaurant_id)
         if not order:
             return None
-        
+
         update_data = data.model_dump(exclude_unset=True)
-        
+
         # Handle status changes
         if "status" in update_data:
             new_status = update_data["status"]
             order.status = new_status
-            
+
             if new_status == OrderStatus.CLOSED:
                 from app.utils.format import today_iso
                 order.closed_at = today_iso()
-                
+
                 # Free the table
                 if order.table_id:
                     table = await self.db.execute(
@@ -450,11 +478,12 @@ class OrderService:
                         table.status = TableStatus.FREE
                         table.current_order_id = None
                         table.opened_at = None
-        
+
         if "payment_method" in update_data:
             order.payment_method = update_data["payment_method"]
-        
+
         await self.db.flush()
+        await self.db.refresh(order)
         return order
     
     async def add_items(self, order_id: UUID, restaurant_id: UUID, items: List[OrderItemCreate], service_tax_percent: float = 10.0) -> Optional[Order]:
@@ -484,9 +513,12 @@ class OrderService:
         order = await self.get_by_id(order_id, restaurant_id)
         if not order:
             return None
-        
-        subtotal = sum(item.unit_price * item.quantity for item in order.items)
-        service_tax = round(subtotal * (service_tax_percent / 100), 2)
+
+        # Same Decimal/float normalization as create() — both `item.unit_price`
+        # and `service_tax_percent` are Numeric columns.
+        tax_pct = float(service_tax_percent)
+        subtotal = float(sum(item.unit_price * item.quantity for item in order.items))
+        service_tax = round(subtotal * (tax_pct / 100), 2)
         total = round(subtotal + service_tax, 2)
         
         order.subtotal = subtotal
@@ -558,12 +590,13 @@ class EmployeeService:
         employee = await self.get_by_id(employee_id, restaurant_id)
         if not employee:
             return None
-        
+
         update_data = data.model_dump(exclude_unset=True)
         for field, value in update_data.items():
             setattr(employee, field, value)
-        
+
         await self.db.flush()
+        await self.db.refresh(employee)
         return employee
     
     async def delete(self, employee_id: UUID, restaurant_id: UUID) -> bool:
@@ -629,11 +662,12 @@ class ServiceCallService:
         call = await self.get_by_id(call_id, restaurant_id)
         if not call:
             return None
-        
+
         call.status = status
         if status == ServiceCallStatus.RESOLVED:
             from app.utils.format import today_iso
             call.resolved_at = today_iso()
-        
+
         await self.db.flush()
+        await self.db.refresh(call)
         return call
