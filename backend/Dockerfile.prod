@@ -1,0 +1,45 @@
+# =============================================================
+# Backend Dockerfile - Production (Oracle Cloud 1GB RAM)
+# Otimizado: imagem slim, multi-stage não compensa pra Python,
+# mas removemos cache e usamos usuário não-root.
+# =============================================================
+
+FROM python:3.11-slim AS backend-base
+
+# Evita arquivos .pyc e buffer no stdout (melhor logs)
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+WORKDIR /app
+
+# Dependências de sistema mínimas (libpq pro asyncpg)
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends \
+        build-essential \
+        libpq-dev \
+        curl \
+    && rm -rf /var/lib/apt/lists/*
+
+# Instala dependências Python (camada cacheada)
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
+
+# Copia o código
+COPY . .
+
+# Usuário não-root por segurança
+RUN useradd --create-home --shell /bin/bash app \
+    && chown -R app:app /app
+USER app
+
+EXPOSE 8000
+
+# Healthcheck interno (a Oracle VM checa via nginx na porta 80)
+HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
+    CMD curl -f http://localhost:8000/api/v1/health || exit 1
+
+# 1 worker só pra economizar RAM na VM de 1GB
+# Ajuste pra 2 se você upgradar a VM pra 2GB+
+CMD ["uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "1"]

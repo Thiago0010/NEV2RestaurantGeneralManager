@@ -49,7 +49,7 @@ function Categories() {
       setList(await api.Category.filter({ restaurant_id: rid }, 'sort_order', 500));
       setLoading(false);
     };
-  useEffect(() => { if (rid) load(); /* eslint-disable-next-line */ }, [rid]);
+  useEffect(() => { if (rid) load();   }, [rid]);
 
   const save = async () => {
       if (!name.trim()) return;
@@ -108,7 +108,7 @@ function Products() {
       ]);
       setProducts(p); setCats(c); setLoading(false);
     };
-  useEffect(() => { if (rid) load(); /* eslint-disable-next-line */ }, [rid]);
+  useEffect(() => { if (rid) load();   }, [rid]);
 
   const catName = (id) => cats.find((c) => c.id === id)?.name || '—';
 

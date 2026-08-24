@@ -129,15 +129,25 @@ class RestaurantUpdate(BaseModel):
 
 class RestaurantRead(RestaurantBase):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: UUID
+    # Billing / Mercado Pago fields. They live on the restaurant row but
+    # the public schema deliberately doesn't expose them.
+    plan_name: str
+    plan_status: str
+    current_period_end: Optional[datetime] = None
+    cancel_at_period_end: bool = False
+    trial_end: Optional[datetime] = None
+    mp_customer_id: Optional[str] = None
+    mp_subscription_id: Optional[str] = None
+    mp_payment_id: Optional[str] = None
     created_at: datetime
     updated_at: datetime
 
 
 class RestaurantPublicRead(BaseModel):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: UUID
     name: str
     description: Optional[str]
@@ -155,6 +165,7 @@ class RestaurantPublicRead(BaseModel):
 # Category schemas
 class CategoryBase(BaseModel):
     name: str
+    slug: Optional[str] = None
     sort_order: int = 0
 
 
@@ -227,17 +238,16 @@ class TableUpdate(BaseModel):
 
 class TableRead(TableBase):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: UUID
     restaurant_id: UUID
     status: TableStatus
     current_order_id: Optional[UUID]
     opened_at: Optional[datetime]
     qr_token: str
-    qr_code_url: str
+    qr_code_url: Optional[str] = None
     created_at: datetime
     updated_at: datetime
-
 
 # Order schemas
 class OrderItemCreate(BaseModel):
@@ -396,3 +406,78 @@ class QRCodeResponse(BaseModel):
     qr_token: str
     qr_code_url: str
     public_url: str
+
+
+# Import billing schemas
+from app.schemas.billing import (
+    CheckoutRequest,
+    CheckoutResponse,
+    PortalResponse,
+    PlanInfo,
+    BillingStatus,
+    PlanResponse,
+    AdminMRRResponse,
+    AdminRevenueResponse,
+    AdminChurnResponse,
+    AdminByPlanResponse,
+    BillingEventRead,
+)
+
+__all__ = [
+    "UserRole",
+    "TableStatus",
+    "OrderStatus",
+    "PaymentMethod",
+    "ServiceCallType",
+    "ServiceCallStatus",
+    "Token",
+    "TokenData",
+    "UserCreate",
+    "UserUpdate",
+    "UserRead",
+    "LoginRequest",
+    "RestaurantBase",
+    "RestaurantCreate",
+    "RestaurantUpdate",
+    "RestaurantRead",
+    "RestaurantPublicRead",
+    "CategoryBase",
+    "CategoryCreate",
+    "CategoryUpdate",
+    "CategoryRead",
+    "ProductBase",
+    "ProductCreate",
+    "ProductUpdate",
+    "ProductRead",
+    "TableBase",
+    "TableCreate",
+    "TableUpdate",
+    "TableRead",
+    "OrderItemCreate",
+    "OrderCreate",
+    "OrderUpdate",
+    "OrderItemRead",
+    "OrderRead",
+    "OrderSummaryRead",
+    "EmployeeBase",
+    "EmployeeCreate",
+    "EmployeeUpdate",
+    "EmployeeRead",
+    "ServiceCallCreate",
+    "ServiceCallUpdate",
+    "ServiceCallRead",
+    "PaginatedResponse",
+    "WSMessage",
+    "QRCodeResponse",
+    "CheckoutRequest",
+    "CheckoutResponse",
+    "PortalResponse",
+    "PlanInfo",
+    "BillingStatus",
+    "PlanResponse",
+    "AdminMRRResponse",
+    "AdminRevenueResponse",
+    "AdminChurnResponse",
+    "AdminByPlanResponse",
+    "BillingEventRead",
+]

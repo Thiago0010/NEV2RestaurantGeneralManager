@@ -1,76 +1,141 @@
-version: '3.8'
-
+# =============================================================
+# Docker Compose - Produção Oracle Cloud (1GB RAM)
+# Tudo numa VM só: postgres + redis + backend + frontend (nginx)
+# Use --env-file .env.production OU defina as vars no shell
+# =============================================================
 services:
+
+  # -----------------------------------------------------------
+  # Postgres - Banco principal
+  # -----------------------------------------------------------
   postgres:
     image: postgres:16-alpine
-    container_name: nev2-postgres-prod
+    container_name: nev2-postgres
+    restart: unless-stopped
     environment:
-      POSTGRES_DB: restaurant_nev2
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-restaurant_nev2}
+      POSTGRES_USER: ${POSTGRES_USER:-nev2_admin}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?ERRO: defina POSTGRES_PASSWORD no .env.production}
+      # Tuning pra VM de 1GB
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
     volumes:
       - postgres_data:/var/lib/postgresql/data
-    ports:
-      - "5432:5432"
+    # SEM ports externas - só acessa via rede interna do docker
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U postgres"]
-      interval: 10s
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-nev2_admin} -d ${POSTGRES_DB:-restaurant_nev2}"]
+      interval: 15s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
+      start_period: 20s
+    # Limite de memória do container (evita OOM na VM de 1GB)
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 128M
+    networks:
+      - nev2_net
 
+  # -----------------------------------------------------------
+  # Redis - Cache / Pub-Sub
+  # -----------------------------------------------------------
   redis:
     image: redis:7-alpine
-    container_name: nev2-redis-prod
+    container_name: nev2-redis
+    restart: unless-stopped
+    command: ["redis-server", "--maxmemory", "64mb", "--maxmemory-policy", "allkeys-lru"]
     volumes:
       - redis_data:/data
-    ports:
-      - "6379:6379"
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
+      interval: 15s
       timeout: 5s
       retries: 5
-    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 80M
+        reservations:
+          memory: 32M
+    networks:
+      - nev2_net
 
+  # -----------------------------------------------------------
+  # Backend - FastAPI
+  # -----------------------------------------------------------
   backend:
     build:
       context: ./backend
-      dockerfile: Dockerfile
-    container_name: nev2-backend-prod
+      dockerfile: Dockerfile.prod
+    container_name: nev2-backend
+    restart: unless-stopped
     environment:
-      DATABASE_URL: postgresql+asyncpg://postgres:${POSTGRES_PASSWORD:-postgres}@postgres:5432/restaurant_nev2
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-nev2_admin}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-restaurant_nev2}
       REDIS_URL: redis://redis:6379/0
-      SECRET_KEY: ${SECRET_KEY:-your-super-secret-key-change-in-production-min-32-chars}
-      SECRET_KEY_REGISTER: ${SECRET_KEY_REGISTER:-123}
-      ALGORITHM: HS256
-      ACCESS_TOKEN_EXPIRE_MINUTES: 10080
-      CORS_ORIGINS: '["http://localhost:5173","http://localhost:3000","http://127.0.0.1:5173"]'
-      BASE_URL: ${BASE_URL:-http://localhost:5173}
-      APP_NAME: NEV2 Restaurant Manager
-      APP_VERSION: 1.0.0
+      SECRET_KEY: ${SECRET_KEY:?ERRO: defina SECRET_KEY no .env.production}
+      SECRET_KEY_REGISTER: ${SECRET_KEY_REGISTER:-}
+      ALGORITHM: ${ALGORITHM:-HS256}
+      ACCESS_TOKEN_EXPIRE_MINUTES: ${ACCESS_TOKEN_EXPIRE_MINUTES:-10080}
+      CORS_ORIGINS: ${CORS_ORIGINS:-["http://localhost"]}
+      BASE_URL: ${BASE_URL:-http://localhost}
+      FRONTEND_URL: ${FRONTEND_URL:-http://localhost}
+      APP_NAME: "[NEV]2 Restaurant Management System"
+      APP_VERSION: "1.0.0"
       DEBUG: "false"
-    ports:
-      - "8000:8000"
+      MP_ACCESS_TOKEN: ${MP_ACCESS_TOKEN:-}
+      MP_PUBLIC_KEY: ${MP_PUBLIC_KEY:-}
+      MP_PRICE_ESSENCIAL: ${MP_PRICE_ESSENCIAL:-9900}
+      MP_PRICE_PROFISSIONAL: ${MP_PRICE_PROFISSIONAL:-19900}
+      MP_PRICE_ESCALA: ${MP_PRICE_ESCALA:-39900}
     depends_on:
       postgres:
         condition: service_healthy
       redis:
         condition: service_healthy
-    restart: unless-stopped
-    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --workers 4
+    # SEM port externa - nginx interno faz proxy
+    deploy:
+      resources:
+        limits:
+          memory: 384M
+        reservations:
+          memory: 192M
+    networks:
+      - nev2_net
 
+  # -----------------------------------------------------------
+  # Frontend - Build do React + Nginx servindo
+  # -----------------------------------------------------------
   frontend:
     build:
       context: .
       dockerfile: Dockerfile.frontend.prod
-    container_name: nev2-frontend-prod
+      args:
+        VITE_API_URL: ${VITE_API_URL:-/api/v1}
+        VITE_WS_URL: ${VITE_WS_URL:-/ws}
+    container_name: nev2-frontend
+    restart: unless-stopped
+    # ÚNICA porta exposta pro mundo: 80 (HTTP) e 443 (HTTPS via certbot)
     ports:
-      - "5173:80"
+      - "80:80"
+      - "443:443"
     depends_on:
       - backend
-    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 64M
+    networks:
+      - nev2_net
 
 volumes:
   postgres_data:
+    driver: local
   redis_data:
+    driver: local
+
+networks:
+  nev2_net:
+    driver: bridge

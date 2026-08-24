@@ -1,11 +1,9 @@
 import React, { useState, useMemo, useCallback } from 'react';
 import { useNavigate, Navigate } from 'react-router-dom';
-import { api } from '@/lib/restaurant-context';
 import { useRestaurant, userRestaurantId } from '@/lib/restaurant-context';
 import { slugify } from '@/lib/format';
 import { extractErrorMessage } from '@/lib/error';
 import { Flame, Loader2, AlertCircle } from 'lucide-react';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
@@ -105,9 +103,6 @@ export default function Onboarding() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState('');
 
-  if (loading) return <div className="grid h-screen place-items-center"><Loader2 className="h-7 w-7 animate-spin-smooth text-primary" /></div>;
-  if (userRestaurantId(user)) return <Navigate to="/" replace />;
-
   const slug = useMemo(() => slugify(form.slug || form.name), [form.slug, form.name]);
 
   const validateField = useCallback((name, value) => {
@@ -154,8 +149,8 @@ export default function Onboarding() {
             // Call the new onboarding endpoint with timeout
             const controller = new AbortController();
             const timeoutId = setTimeout(() => controller.abort(), 30000); // 30 second timeout
-          
-            const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/restaurant/onboarding`, {
+         
+            const response = await fetch(`${import.meta.env.VITE_API_URL || '/api/v1'}/restaurant/onboarding`, {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
@@ -183,9 +178,15 @@ export default function Onboarding() {
 
             const restaurant = await response.json();
 
-            await reload();
-            toast({ title: 'Estabelecimento criado', description: 'Bem-vindo ao seu painel.' });
-            navigate('/', { replace: true });
+                        await reload();
+                        toast({
+                          title: 'Estabelecimento criado',
+                          description: 'Você ganhou 7 dias de trial grátis. Escolha um plano quando quiser.',
+                        });
+                        // Send the user to /settings so they can pick a plan
+                        // (or stay on trial). The Settings page already lists
+                        // the catalogue, so no need for a separate redirect.
+                        navigate('/settings', { replace: true });
           } catch (err) {
             clearTimeout(timeoutId);
             const errMsg = err?.message || err?.detail || String(err);
@@ -208,6 +209,9 @@ export default function Onboarding() {
   // Memoize error states
   const nameError = useMemo(() => validateField('name', form.name), [form.name, validateField]);
   const slugError = useMemo(() => validateField('slug', form.slug), [form.slug, validateField]);
+
+  if (loading) return <div className="grid h-screen place-items-center"><Loader2 className="h-7 w-7 animate-spin-smooth text-primary" /></div>;
+  if (userRestaurantId(user)) return <Navigate to="/" replace />;
 
   return (
     <div className="min-h-screen grid lg:grid-cols-2">

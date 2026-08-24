@@ -1,0 +1,44 @@
+{
+  "name": "[NEV]2 Restaurant Management System",
+  "short_name": "[NEV]2",
+  "description": "Sistema completo para gestão de restaurantes: mesas, cardápio, pedidos, cozinha e QR Code em tempo real.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#14110f",
+  "theme_color": "#14110f",
+  "orientation": "portrait-primary",
+  "icons": [
+    {
+      "src": "/logo.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["business", "productivity", "food"],
+  "screenshots": [],
+  "shortcuts": [
+    {
+      "name": "Mesas",
+      "short_name": "Mesas",
+      "description": "Gerenciar mesas e pedidos",
+      "url": "/tables",
+      "icons": [{ "src": "/logo.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Cardápio",
+      "short_name": "Cardápio",
+      "description": "Gerenciar produtos e categorias",
+      "url": "/menu",
+      "icons": [{ "src": "/logo.svg", "sizes": "192x192" }]
+    },
+    {
+      "name": "Cozinha",
+      "short_name": "Cozinha",
+      "description": "Visualizar pedidos na cozinha",
+      "url": "/kitchen",
+      "icons": [{ "src": "/logo.svg", "sizes": "192x192" }]
+    }
+  ],
+  "prefer_related_applications": false
+}

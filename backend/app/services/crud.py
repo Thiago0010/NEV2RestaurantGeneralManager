@@ -80,6 +80,13 @@ class RestaurantService:
 class CategoryService:
     def __init__(self, db: AsyncSession):
         self.db = db
+
+    @staticmethod
+    def _generate_slug(name: str) -> str:
+        import re
+        slug = re.sub(r'[^a-zA-Z0-9\s]', '', name).strip().lower()
+        slug = re.sub(r'[\s\-]+', '-', slug)
+        return slug
     
     async def create(self, data: CategoryCreate, restaurant_id: UUID) -> Category:
         # Get max sort_order
@@ -89,9 +96,13 @@ class CategoryService:
         max_order = result.scalar() or 0
 
         payload = data.model_dump()
-        # If client didn't explicitly set sort_order (or sent 0), auto-assign next slot
-        if not payload.get("sort_order"):
+        # If client didn't explicitly set sort_order, auto-assign next slot
+        if "sort_order" not in data.model_fields_set:
             payload["sort_order"] = max_order + 1
+        # Generate slug if not provided
+        if "slug" not in data.model_fields_set:
+            base_slug = self._generate_slug(payload["name"])
+            payload["slug"] = f"{base_slug}-{str(restaurant_id)[:8]}"
 
         category = Category(
             **payload,
@@ -103,30 +114,35 @@ class CategoryService:
         return category
 
     async def bulk_create(self, items: List[CategoryCreate], restaurant_id: UUID) -> List[Category]:
-        """Create multiple categories in a single transaction"""
-        # Get current max sort_order
-        result = await self.db.execute(
-            select(func.max(Category.sort_order)).where(Category.restaurant_id == restaurant_id)
-        )
-        max_order = result.scalar() or 0
-
-        categories = []
-        for i, item in enumerate(items):
-            payload = item.model_dump()
-            if not payload.get("sort_order"):
-                payload["sort_order"] = max_order + 1 + i
-
-            category = Category(
-                **payload,
-                restaurant_id=restaurant_id,
+            """Create multiple categories in a single transaction"""
+            # Get current max sort_order
+            result = await self.db.execute(
+                select(func.max(Category.sort_order)).where(Category.restaurant_id == restaurant_id)
             )
-            self.db.add(category)
-            categories.append(category)
+            max_order = result.scalar() or 0
+            sort_order = max_order + 1
+            categories = []
+            for item in items:
+                payload = item.model_dump()
+                if not payload.get("sort_order"):
+                    payload["sort_order"] = sort_order
+                    sort_order += 1
+                # Generate slug if not explicitly provided
+                if "slug" not in item.model_fields_set:
+                    base_slug = self._generate_slug(payload["name"])
+                    payload["slug"] = f"{base_slug}-{str(restaurant_id)[:8]}"
 
-        await self.db.flush()
-        for c in categories:
-            await self.db.refresh(c)
-        return categories
+                category = Category(
+                    **payload,
+                    restaurant_id=restaurant_id,
+                )
+                self.db.add(category)
+                categories.append(category)
+
+            await self.db.flush()
+            for c in categories:
+                await self.db.refresh(c)
+            return categories
     
     async def get_by_id(self, category_id: UUID, restaurant_id: UUID) -> Optional[Category]:
         result = await self.db.execute(
@@ -573,14 +589,12 @@ class EmployeeService:
         page: int = 1,
         page_size: int = 500
     ) -> tuple[List[Employee], int]:
-        query = select(Employee).where(Employee.restaurant_id == restaurant_id).order_by(Employee.name)
-        
+        query = select(Employee).join(User).where(Employee.restaurant_id == restaurant_id)
         if active_only:
             query = query.where(Employee.active == True)
-        
+        query = query.order_by(User.full_name)
         total_result = await self.db.execute(select(func.count()).select_from(query.subquery()))
         total = total_result.scalar()
-        
         result = await self.db.execute(
             query.offset((page - 1) * page_size).limit(page_size)
         )

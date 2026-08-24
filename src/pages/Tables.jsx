@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/restaurant-context';
 import { useRestaurant, userRestaurantId } from '@/lib/restaurant-context';
 import { formatCurrency, timeAgo, todayISO } from '@/lib/format';
-import { Plus, Loader2, X, Pencil, Trash2 } from 'lucide-react';
+import { Plus, Loader2, Pencil, Trash2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';

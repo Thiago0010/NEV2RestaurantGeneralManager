@@ -8,7 +8,7 @@ import { LogIn, Mail, Lock, Loader2, AlertCircle } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import { safeReturnTo } from "@/lib/authReturnTo";
 import { motion, AnimatePresence } from "framer-motion";
-import { usePasswordStrength, useToggleVisibility } from "@/hooks/usePasswordStrength";
+import { usePasswordStrength } from "@/hooks/usePasswordStrength";
 
 // FieldWrapper as a separate memoized component
 const FieldWrapper = React.memo(({ children, error, className = "" }) => (
@@ -186,7 +186,7 @@ export default function Login() {
 
         <div>
           <div className="flex items-center justify-between">
-            <Label htmlFor="password">Senha</Label>
+            {/* <Label htmlFor="password">Senha</Label> */}
             <Link to="/forgot-password" className="text-xs text-primary hover:underline">
               Esqueci a senha
             </Link>

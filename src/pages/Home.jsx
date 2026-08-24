@@ -3,7 +3,7 @@ import { api } from '@/lib/restaurant-context';
 import { useRestaurant, userRestaurantId } from '@/lib/restaurant-context';
 import { formatCurrency, isToday, dayKey } from '@/lib/format';
 import {
-  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, Cell
+  BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
 } from 'recharts';
 import { DollarSign, ShoppingBag, TrendingUp, Utensils, Clock, Bell, Loader2, Flame } from 'lucide-react';
 import Footer from '@/components/Footer';

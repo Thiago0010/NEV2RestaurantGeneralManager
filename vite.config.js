@@ -25,4 +25,20 @@ export default defineConfig({
       },
     },
   },
+  build: {
+    // Generate sitemap during build
+    rollupOptions: {
+      output: {
+        manualChunks: {
+          vendor: ['react', 'react-dom', 'react-router-dom', '@tanstack/react-query'],
+          ui: ['@radix-ui/react-dialog', '@radix-ui/react-dropdown-menu', '@radix-ui/react-tabs', '@radix-ui/react-toast'],
+          charts: ['recharts', 'embla-carousel-react'],
+          utils: ['date-fns', 'lodash', 'clsx', 'tailwind-merge', 'zod'],
+        },
+      },
+    },
+    chunkSizeWarningLimit: 1000,
+  },
+  // Ensure public files are copied as-is
+  publicDir: 'public',
 })

@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { api } from '@/lib/restaurant-context';
 import { useRestaurant, userRestaurantId } from '@/lib/restaurant-context';
-import { Loader2, QrCode, Copy, Printer, Download, Eye } from 'lucide-react';
+import { Loader2, Copy, Printer, Download, Eye } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 import {
@@ -31,7 +31,7 @@ export default function QRCodes() {
       setTables(await api.Table.filter({ restaurant_id: rid }, 'number', 500));
       setLoading(false);
     };
-  useEffect(() => { if (rid) load(); /* eslint-disable-next-line */ }, [rid]);
+  useEffect(() => { if (rid) load();   }, [rid]);
 
   const copy = async (url) => {
     await navigator.clipboard.writeText(url);

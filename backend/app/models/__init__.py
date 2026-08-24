@@ -1,12 +1,38 @@
-from sqlalchemy import Column, String, Text, Boolean, Integer, Numeric, DateTime, ForeignKey, Enum as SQLEnum, Index, UniqueConstraint
-from sqlalchemy.dialects.postgresql import UUID
-from sqlalchemy.orm import relationship, declarative_mixin
-from sqlalchemy.sql import func
-import uuid
+"""SQLAlchemy 2.0 (async) models for the [NEV]2 Restaurant Management System.
+
+Re-exports the shared ``Base`` from :mod:`app.core.database` so Alembic and
+tests see a single source of truth. The model definitions intentionally live
+in this single module for simplicity (a multi-tenant SaaS of this size does
+not benefit from a package-per-table split).
+"""
+from __future__ import annotations
+
 import enum
+import uuid
+from datetime import datetime
+from typing import Optional
+
+from sqlalchemy import (
+    Boolean,
+    DateTime,
+    Enum,
+    ForeignKey,
+    Integer,
+    Numeric,
+    String,
+    Text,
+    func,
+    text,
+)
+from sqlalchemy.dialects.postgresql import UUID as PGUUID
+from sqlalchemy.orm import Mapped, mapped_column, relationship
+
 from app.core.database import Base
 
 
+# ---------------------------------------------------------------------------
+# Enums
+# ---------------------------------------------------------------------------
 class UserRole(str, enum.Enum):
     OWNER = "owner"
     MANAGER = "manager"
@@ -50,192 +76,490 @@ class ServiceCallStatus(str, enum.Enum):
     RESOLVED = "resolved"
 
 
+class PlanName(str, enum.Enum):
+    NONE = "none"
+    ESSENCIAL = "essencial"
+    PROFISSIONAL = "profissional"
+    ESCALA = "escala"
+
+
+class PlanStatus(str, enum.Enum):
+    NONE = "none"
+    ACTIVE = "active"
+    TRIALING = "trialing"
+    PAST_DUE = "past_due"
+    CANCELED = "canceled"
+    INCOMPLETE = "incomplete"
+    INCOMPLETE_EXPIRED = "incomplete_expired"
+    UNPAID = "unpaid"
+
+
+# ---------------------------------------------------------------------------
+# Models
+# ---------------------------------------------------------------------------
 class Restaurant(Base):
     __tablename__ = "restaurants"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    name = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
-    phone = Column(String(50), nullable=True)
-    address = Column(Text, nullable=True)
-    currency = Column(String(10), default="R$")
-    service_tax_percent = Column(Numeric(5, 2), default=10.00)
-    welcome_message = Column(Text, nullable=True)
-    accent_color = Column(String(7), default="#e07a3c")
-    logo_url = Column(String(500), nullable=True)
-    cover_image = Column(String(500), nullable=True)
-    slug = Column(String(100), unique=True, nullable=False, index=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    slug: Mapped[str] = mapped_column(
+        String(255), unique=True, index=True, nullable=False
+    )
+    owner_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True)
+
+    address: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
+    email: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    welcome_message: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    currency: Mapped[str] = mapped_column(String(8), default="R$", nullable=False)
+    service_tax_percent: Mapped[float] = mapped_column(
+        Numeric(5, 2), default=10.0, nullable=False
+    )
+    accent_color: Mapped[str] = mapped_column(
+        String(16), default="#e07a3c", nullable=False
+    )
+    logo_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    cover_image: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+
+    # ---- Mercado Pago / billing ------------------------------------------
+    plan_name: Mapped[PlanName] = mapped_column(
+        Enum(PlanName, name="planname"),
+        default=PlanName.NONE,
+        nullable=False,
+        index=True,
+    )
+    plan_status: Mapped[PlanStatus] = mapped_column(
+        Enum(PlanStatus, name="planstatus"),
+        default=PlanStatus.NONE,
+        nullable=False,
+        index=True,
+    )
+    current_period_end: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    cancel_at_period_end: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    trial_end: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    # Mercado Pago specific identifiers
+    mp_customer_id: Mapped[Optional[str]] = mapped_column(
+        String(128), nullable=True, index=True
+    )
+    mp_subscription_id: Mapped[Optional[str]] = mapped_column(
+        String(128), nullable=True, index=True
+    )
+    mp_payment_id: Mapped[Optional[str]] = mapped_column(String(128), nullable=True)
+    # Legacy fields kept for backwards compatibility with the v0 schema
+    # (dropped from the new billing migration but harmless to keep nullable).
+    stripe_customer_id: Mapped[Optional[str]] = mapped_column(
+        String(128), nullable=True
+    )
+    stripe_subscription_id: Mapped[Optional[str]] = mapped_column(
+        String(128), nullable=True
+    )
+    subscription_item_id_usage: Mapped[Optional[str]] = mapped_column(
+        String(128), nullable=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
     # Relationships
-    users = relationship("User", back_populates="restaurant", cascade="all, delete-orphan")
-    categories = relationship("Category", back_populates="restaurant", cascade="all, delete-orphan")
-    products = relationship("Product", back_populates="restaurant", cascade="all, delete-orphan")
-    tables = relationship("Table", back_populates="restaurant", cascade="all, delete-orphan")
-    orders = relationship("Order", back_populates="restaurant", cascade="all, delete-orphan")
-    employees = relationship("Employee", back_populates="restaurant", cascade="all, delete-orphan")
-    service_calls = relationship("ServiceCall", back_populates="restaurant", cascade="all, delete-orphan")
+    # Note: there are TWO FKs between users and restaurants:
+    #   users.restaurant_id -> restaurants.id   (employee belongs to a restaurant)
+    #   restaurants.owner_id -> users.id       (restaurant has one owner user)
+    # When configuring the back-reference on `Restaurant.users` we must
+    # explicitly tell SQLAlchemy which FK to use for the join, otherwise
+    # it raises "multiple foreign key paths linking the tables".
+    users = relationship(
+        "User",
+        back_populates="restaurant",
+        foreign_keys="User.restaurant_id",
+    )
+    categories = relationship("Category", back_populates="restaurant")
+    products = relationship("Product", back_populates="restaurant")
+    tables = relationship("Table", back_populates="restaurant")
+    orders = relationship("Order", back_populates="restaurant")
+    employees = relationship("Employee", back_populates="restaurant")
+    service_calls = relationship("ServiceCall", back_populates="restaurant")
+    billing_events = relationship(
+        "BillingEvent", back_populates="restaurant", cascade="all, delete-orphan"
+    )
 
 
 class User(Base):
     __tablename__ = "users"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    email = Column(String(255), unique=True, nullable=False, index=True)
-    hashed_password = Column(String(255), nullable=False)
-    full_name = Column(String(255), nullable=True)
-    role = Column(SQLEnum(UserRole), default=UserRole.OWNER, nullable=False)
-    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=True, index=True)
-    is_active = Column(Boolean, default=True)
-    is_superuser = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    last_login = Column(DateTime(timezone=True), nullable=True)
-    
-    # Relationships
-    restaurant = relationship("Restaurant", back_populates="users")
-    
-    __table_args__ = (
-        Index("ix_users_email_restaurant", "email", "restaurant_id"),
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    email: Mapped[str] = mapped_column(
+        String(255), unique=True, index=True, nullable=False
+    )
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    full_name: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    is_superuser: Mapped[bool] = mapped_column(
+        Boolean, default=False, nullable=False
+    )
+    role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole, name="userrole"), nullable=False, default=UserRole.OWNER
+    )
+    restaurant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("restaurants.id"), nullable=True
+    )
+    last_login: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    restaurant = relationship(
+        "Restaurant",
+        back_populates="users",
+        foreign_keys=[restaurant_id],
     )
 
 
 class Category(Base):
     __tablename__ = "categories"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
-    name = Column(String(100), nullable=False)
-    sort_order = Column(Integer, default=0)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
-    # Relationships
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    slug: Mapped[str] = mapped_column(
+        String(255), unique=True, index=True, nullable=False
+    )
+    restaurant_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("restaurants.id"), nullable=False
+    )
+    sort_order: Mapped[int] = mapped_column(Integer, default=0, nullable=False)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
     restaurant = relationship("Restaurant", back_populates="categories")
-    products = relationship("Product", back_populates="category", cascade="all, delete-orphan")
+    products = relationship("Product", back_populates="category")
 
 
 class Product(Base):
     __tablename__ = "products"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
-    category_id = Column(UUID(as_uuid=True), ForeignKey("categories.id", ondelete="SET NULL"), nullable=True, index=True)
-    name = Column(String(255), nullable=False)
-    description = Column(Text, nullable=True)
-    price = Column(Numeric(10, 2), nullable=False)
-    image_url = Column(String(500), nullable=True)
-    available = Column(Boolean, default=True)
-    featured = Column(Boolean, default=False)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
-    # Relationships
-    restaurant = relationship("Restaurant", back_populates="products")
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    name: Mapped[str] = mapped_column(String(255), nullable=False)
+    description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    category_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("categories.id"), nullable=False
+    )
+    restaurant_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("restaurants.id"), nullable=False
+    )
+    is_available: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    featured: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
+    image_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
+    preparation_time: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
     category = relationship("Category", back_populates="products")
-    order_items = relationship("OrderItem", back_populates="product")
+    restaurant = relationship("Restaurant", back_populates="products")
 
 
 class Table(Base):
     __tablename__ = "tables"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
-    number = Column(String(20), nullable=False)
-    seats = Column(Integer, default=4)
-    status = Column(SQLEnum(TableStatus), default=TableStatus.FREE, nullable=False, index=True)
-    current_order_id = Column(UUID(as_uuid=True), ForeignKey("orders.id", ondelete="SET NULL"), nullable=True)
-    opened_at = Column(DateTime(timezone=True), nullable=True)
-    qr_token = Column(String(64), unique=True, nullable=False, index=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
-    # Relationships
-    restaurant = relationship("Restaurant", back_populates="tables")
-    orders = relationship("Order", back_populates="table", foreign_keys="Order.table_id")
 
-    __table_args__ = (
-        UniqueConstraint("restaurant_id", "number", name="uq_table_restaurant_number"),
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
     )
-    
-    @property
-    def qr_code_url(self):
-        from app.core.config import settings
-        return f"{settings.BASE_URL.rstrip('/')}/r/qr/{self.qr_token}"
+    restaurant_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("restaurants.id"), nullable=False
+    )
+    number: Mapped[str] = mapped_column(String(10), nullable=False)
+    seats: Mapped[int] = mapped_column(Integer, nullable=False, default=4)
+    status: Mapped[TableStatus] = mapped_column(
+        Enum(TableStatus, name="tablestatus"),
+        nullable=False,
+        default=TableStatus.FREE,
+    )
+    qr_token: Mapped[str] = mapped_column(
+        String(255), unique=True, index=True, nullable=False
+    )
+    current_order_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("orders.id"), nullable=True
+    )
+    opened_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    restaurant = relationship("Restaurant", back_populates="tables")
+    current_order = relationship("Order", foreign_keys=[current_order_id])
 
 
 class Order(Base):
     __tablename__ = "orders"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
-    table_id = Column(UUID(as_uuid=True), ForeignKey("tables.id", ondelete="SET NULL"), nullable=True, index=True)
-    table_number = Column(String(20), nullable=False)
-    status = Column(SQLEnum(OrderStatus), default=OrderStatus.RECEIVED, nullable=False, index=True)
-    subtotal = Column(Numeric(10, 2), default=0.00)
-    service_tax = Column(Numeric(10, 2), default=0.00)
-    total = Column(Numeric(10, 2), default=0.00)
-    payment_method = Column(SQLEnum(PaymentMethod), nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    closed_at = Column(DateTime(timezone=True), nullable=True)
-    
-    # Relationships
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    restaurant_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("restaurants.id"), nullable=False
+    )
+    table_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("tables.id"), nullable=True
+    )
+    table_number: Mapped[str] = mapped_column(String(10), nullable=False)
+    status: Mapped[OrderStatus] = mapped_column(
+        Enum(OrderStatus, name="orderstatus"),
+        nullable=False,
+        default=OrderStatus.RECEIVED,
+    )
+    subtotal: Mapped[float] = mapped_column(
+        Numeric(10, 2), nullable=False, default=0
+    )
+    service_tax: Mapped[float] = mapped_column(
+        Numeric(10, 2), nullable=False, default=0
+    )
+    total: Mapped[float] = mapped_column(
+        Numeric(10, 2), nullable=False, default=0
+    )
+    payment_method: Mapped[Optional[PaymentMethod]] = mapped_column(
+        Enum(PaymentMethod, name="paymentmethod"), nullable=True
+    )
+    paid_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    closed_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
     restaurant = relationship("Restaurant", back_populates="orders")
-    table = relationship("Table", back_populates="orders", foreign_keys="Order.table_id")
-    items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+    table = relationship("Table", foreign_keys=[table_id])
+    items = relationship(
+        "OrderItem", back_populates="order", cascade="all, delete-orphan"
+    )
 
 
 class OrderItem(Base):
     __tablename__ = "order_items"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
-    order_id = Column(UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True)
-    product_id = Column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="SET NULL"), nullable=True)
-    product_name = Column(String(255), nullable=False)
-    quantity = Column(Integer, default=1)
-    unit_price = Column(Numeric(10, 2), nullable=False)
-    notes = Column(Text, nullable=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
-    # Relationships
-    restaurant = relationship("Restaurant")
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    order_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("orders.id"), nullable=False
+    )
+    product_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("products.id"), nullable=True
+    )
+    product_name: Mapped[str] = mapped_column(String(255), nullable=False)
+    quantity: Mapped[int] = mapped_column(Integer, nullable=False)
+    unit_price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    restaurant_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("restaurants.id"), nullable=False
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
     order = relationship("Order", back_populates="items")
-    product = relationship("Product", back_populates="order_items")
+    product = relationship("Product")
+    restaurant = relationship("Restaurant")
 
 
 class Employee(Base):
     __tablename__ = "employees"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
-    name = Column(String(255), nullable=False)
-    role = Column(SQLEnum(UserRole), default=UserRole.WAITER, nullable=False)
-    phone = Column(String(50), nullable=True)
-    active = Column(Boolean, default=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now())
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    
-    # Relationships
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    restaurant_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("restaurants.id"), nullable=False
+    )
+    hire_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    salary: Mapped[Optional[float]] = mapped_column(Numeric(10, 2), nullable=True)
+    is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
+    user = relationship("User")
     restaurant = relationship("Restaurant", back_populates="employees")
 
 
 class ServiceCall(Base):
     __tablename__ = "service_calls"
-    
-    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    restaurant_id = Column(UUID(as_uuid=True), ForeignKey("restaurants.id", ondelete="CASCADE"), nullable=False, index=True)
-    table_id = Column(UUID(as_uuid=True), ForeignKey("tables.id", ondelete="CASCADE"), nullable=False, index=True)
-    table_number = Column(String(20), nullable=False)
-    type = Column(SQLEnum(ServiceCallType), nullable=False)
-    status = Column(SQLEnum(ServiceCallStatus), default=ServiceCallStatus.PENDING, nullable=False, index=True)
-    created_at = Column(DateTime(timezone=True), server_default=func.now(), index=True)
-    updated_at = Column(DateTime(timezone=True), server_default=func.now(), onupdate=func.now())
-    resolved_at = Column(DateTime(timezone=True), nullable=True)
-    
-    # Relationships
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    restaurant_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("restaurants.id"), nullable=False
+    )
+    table_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("tables.id"), nullable=True
+    )
+    type: Mapped[ServiceCallType] = mapped_column(
+        Enum(ServiceCallType, name="servicecalltype"), nullable=False
+    )
+    status: Mapped[ServiceCallStatus] = mapped_column(
+        Enum(ServiceCallStatus, name="servicecallstatus"),
+        nullable=False,
+        default=ServiceCallStatus.PENDING,
+    )
+    notes: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    resolved_at: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    updated_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        server_default=func.now(),
+        onupdate=func.now(),
+        nullable=False,
+    )
+
     restaurant = relationship("Restaurant", back_populates="service_calls")
     table = relationship("Table")
+
+
+class BillingEvent(Base):
+    """Audit log of every webhook notification received from Mercado Pago.
+
+    We deduplicate by ``mp_event_id`` (the ``data.id`` from the notification
+    payload) so duplicate retries from MP are no-ops.
+    """
+
+    __tablename__ = "billing_events"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    restaurant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True),
+        ForeignKey("restaurants.id", ondelete="CASCADE"),
+        nullable=True,
+        index=True,
+    )
+    mp_event_id: Mapped[str] = mapped_column(
+        String(128), unique=True, index=True, nullable=False
+    )
+    event_type: Mapped[str] = mapped_column(
+        String(64), index=True, nullable=False
+    )
+    payload: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    processed: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
+    error: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    restaurant = relationship("Restaurant", back_populates="billing_events")
+
+
+__all__ = [
+    "Base",
+    "UserRole",
+    "TableStatus",
+    "OrderStatus",
+    "PaymentMethod",
+    "ServiceCallType",
+    "ServiceCallStatus",
+    "PlanName",
+    "PlanStatus",
+    "Restaurant",
+    "User",
+    "Category",
+    "Product",
+    "Table",
+    "Order",
+    "OrderItem",
+    "Employee",
+    "ServiceCall",
+    "BillingEvent",
+]

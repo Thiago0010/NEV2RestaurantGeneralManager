@@ -1,6 +1,6 @@
 // Restaurant Context - replaces Base44 restaurant context
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { authApi, restaurantApi, tableApi, categoryApi, productApi, orderApi, employeeApi, serviceCallApi } from '@/api/client';
+import { authApi, restaurantApi, tableApi, categoryApi, productApi, orderApi, employeeApi, serviceCallApi, request } from '@/api/client';
 
 const defaultContext = {
   user: null,
@@ -295,6 +295,24 @@ export const api = {
     },
     resetPasswordRequest: (email) => authApi.resetPasswordRequest(email),
     resetPassword: (payload) => authApi.resetPassword(payload),
+  },
+
+  // Billing
+      billing: {
+        /**
+         * @param {"escala"} plan
+         */
+        createCheckout: (plan) => 
+          request('/billing/checkout', { method: 'POST', body: { plan } }),
+  
+    createPortal: () => 
+      request('/billing/portal', { method: 'POST' }),
+  
+    getStatus: () => 
+      request('/billing/status'),
+  
+    getPlans: () => 
+      request('/billing/plans'),
   },
 };
 

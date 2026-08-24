@@ -1,8 +1,8 @@
 import React, { useEffect, useState, useRef } from 'react';
 import { api } from '@/lib/restaurant-context';
 import { useRestaurant, userRestaurantId } from '@/lib/restaurant-context';
-import { formatCurrency, timeAgo } from '@/lib/format';
-import { Loader2, ChefHat, Check, Flame, Bell } from 'lucide-react';
+import { timeAgo } from '@/lib/format';
+import { Loader2, Check, Flame } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
 
@@ -43,12 +43,12 @@ export default function Kitchen() {
       setLoading(false);
     };
 
-    useEffect(() => { if (rid) load(); /* eslint-disable-next-line */ }, [rid]);
+    useEffect(() => { if (rid) load();   }, [rid]);
     useEffect(() => {
       if (!rid) return;
       const unsub = api.Order.subscribe(() => load());
       return unsub;
-      /* eslint-disable-next-line */
+       
     }, [rid]);
 
     const setStatus = async (order, status, msg) => {

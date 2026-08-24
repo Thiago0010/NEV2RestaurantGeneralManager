@@ -1,4 +1,4 @@
-# NEV2 Restaurant Manager
+# [NEV]2 Restaurant Management System
 
 Sistema completo de gerenciamento para restaurantes com backend Python (FastAPI) e frontend React.
 
@@ -229,4 +229,4 @@ VITE_API_URL=http://localhost:8000/api/v1
 
 ## Licença
 
-Proprietário - NEV2
+Proprietário - [NEV]2 Restaurant Management System

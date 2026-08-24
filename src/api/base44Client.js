@@ -1,4 +1,4 @@
-// NEV2 API Client - replaces @base44/sdk
+// [NEV]2 Restaurant Management System API Client - replaces @base44/sdk
 // This provides the same interface as base44Client.js but uses our own backend
 
 import { api } from '@/lib/restaurant-context';

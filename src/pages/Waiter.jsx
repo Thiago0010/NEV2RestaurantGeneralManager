@@ -3,7 +3,7 @@ import { api } from '@/lib/restaurant-context';
 import { useRestaurant, userRestaurantId } from '@/lib/restaurant-context';
 import { formatCurrency, timeAgo } from '@/lib/format';
 import { refreshOrderTotals } from '@/lib/orders';
-import { Plus, Loader2, Bell, ClipboardList, LayoutGrid, Check, X } from 'lucide-react';
+import { Plus, Loader2, Bell, ClipboardList, LayoutGrid, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
@@ -48,7 +48,7 @@ function WaiterTables() {
     ]);
     setTables(t); setOrders(o); setLoading(false);
   };
-  useEffect(() => { if (rid) load(); /* eslint-disable-next-line */ }, [rid]);
+  useEffect(() => { if (rid) load();   }, [rid]);
 
   const openTable = async (t) => {
     // Backend `OrderCreate` requires `items`. Passing an empty array opens the
@@ -178,12 +178,12 @@ function Calls() {
     setCalls(await api.ServiceCall.filter({ restaurant_id: rid, status: 'pending' }, '-created_date', 200));
     setLoading(false);
   };
-  useEffect(() => { if (rid) load(); /* eslint-disable-next-line */ }, [rid]);
+  useEffect(() => { if (rid) load();   }, [rid]);
   useEffect(() => {
     if (!rid) return;
     const unsub = api.ServiceCall.subscribe(() => load());
     return unsub;
-    /* eslint-disable-next-line */
+     
   }, [rid]);
 
   const assume = async (c) => { await api.ServiceCall.update(c.id, { status: 'assumed' }); toast({ title: `Chamado da Mesa ${c.table_number} assumido` }); load(); };
@@ -224,7 +224,7 @@ function ActiveOrders() {
     setOrders(await api.Order.filter({ restaurant_id: rid, status: { $in: ['received', 'preparing', 'ready', 'delivered'] } }, '-created_date', 200));
     setLoading(false);
   };
-  useEffect(() => { if (rid) load(); /* eslint-disable-next-line */ }, [rid]);
+  useEffect(() => { if (rid) load();   }, [rid]);
 
   const advance = async (o, status, msg) => { await api.Order.update(o.id, { status }); toast({ title: msg }); load(); };
   const statusLabel = { received: 'Recebido', preparing: 'Em preparo', ready: 'Pronto', delivered: 'Entregue' };

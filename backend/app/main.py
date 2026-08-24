@@ -5,11 +5,12 @@ from fastapi.staticfiles import StaticFiles
 import uvicorn
 
 from app.core.config import settings
-from app.core.database import init_db, engine
+from app.core.database import init_db, engine, async_session_maker
 from app.api.v1.router import api_router
+from app.api.v1.endpoints import auth
 from app.core.security_headers import SecurityHeadersMiddleware
 from app.core.rate_limit import RateLimitMiddleware
-
+from app.core.billing_middleware import BillingMiddleware
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
@@ -19,11 +20,10 @@ async def lifespan(app: FastAPI):
     # Shutdown
     await engine.dispose()
 
-
 app = FastAPI(
     title=settings.APP_NAME,
     version=settings.APP_VERSION,
-    description="NEV2 Restaurant Manager - Backend API",
+    description="[NEV]2 Restaurant Management System - Backend API",
     lifespan=lifespan,
     docs_url="/docs",
     redoc_url="/redoc",
@@ -39,20 +39,24 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Billing middleware - must be after CORS but before rate limiting
+app.add_middleware(BillingMiddleware)
+
 # Rate limiting middleware
 app.add_middleware(RateLimitMiddleware)
 
 # Security headers middleware
 app.add_middleware(SecurityHeadersMiddleware)
 
-# Include API router
+# Include API router with /api/v1 prefix
 app.include_router(api_router)
 
+# Also include auth routes at root level for direct access
+app.include_router(auth.router, tags=["auth"])
 
 @app.get("/health")
 async def health_check():
     return {"status": "healthy", "version": settings.APP_VERSION}
-
 
 @app.get("/")
 async def root():
@@ -62,7 +66,6 @@ async def root():
         "docs": "/docs",
         "health": "/health"
     }
-
 
 if __name__ == "__main__":
     uvicorn.run(

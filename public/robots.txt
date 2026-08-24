@@ -1,0 +1,28 @@
+# [NEV]2 Restaurant Management System - Robots.txt
+User-agent: *
+Allow: /
+
+# Public routes (accessible without authentication)
+Allow: /login
+Allow: /register
+Allow: /forgot-password
+Allow: /reset-password
+Allow: /r/
+
+# Disallow private/admin routes
+Disallow: /onboarding
+Disallow: /tables
+Disallow: /menu
+Disallow: /kitchen
+Disallow: /waiter
+Disallow: /qr-codes
+Disallow: /reports
+Disallow: /employees
+Disallow: /settings
+Disallow: /api/
+
+# Sitemap
+Sitemap: https://nev2restaurant.com/sitemap.xml
+
+# Host
+Host: https://nev2restaurant.com

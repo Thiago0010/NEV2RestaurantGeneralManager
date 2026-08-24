@@ -56,8 +56,12 @@ async def create_restaurant_onboarding(
     if existing_slug.scalar_one_or_none():
         raise HTTPException(status_code=400, detail="Slug already in use")
     
-    # Create restaurant
-    restaurant = Restaurant(**data.model_dump())
+    # Create restaurant — owner_id comes from the authenticated user, never
+    # from the request body. RestaurantCreate does not expose this field,
+    # so we inject it explicitly here to satisfy the NOT NULL constraint.
+    restaurant_data = data.model_dump()
+    restaurant_data["owner_id"] = current_user.id
+    restaurant = Restaurant(**restaurant_data)
     db.add(restaurant)
     await db.flush()
     # Ensure server-managed columns (created_at/updated_at) are populated eagerly

@@ -1,4 +1,4 @@
-// API Client for NEV2 Restaurant Manager Backend
+// API Client for [NEV]2 Restaurant Management System Backend
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/';
 const DEFAULT_TIMEOUT = 15000; // 15 seconds
 
@@ -32,6 +32,12 @@ function buildQuery(params) {
     }
   });
   return search.toString();
+}
+
+let on402Callback = null;
+
+export function set402Handler(callback) {
+  on402Callback = callback;
 }
 
 async function request(endpoint, options = {}) {
@@ -73,6 +79,11 @@ async function request(endpoint, options = {}) {
     const data = await response.json().catch(() => ({}));
     
     if (!response.ok) {
+      // Handle 402 Payment Required - billing required
+      if (response.status === 402 && on402Callback) {
+        on402Callback(data);
+      }
+      
       throw new ApiError(
         data.detail || `HTTP ${response.status}`,
         response.status,
@@ -347,7 +358,7 @@ export const publicApi = {
   getTable: (restaurantId, tableNumber) => request(`/public/restaurant/${restaurantId}/tables/${tableNumber}`),
 };
 
-export { ApiError };
+export { ApiError, request };
 export default {
   auth: authApi,
   restaurant: restaurantApi,

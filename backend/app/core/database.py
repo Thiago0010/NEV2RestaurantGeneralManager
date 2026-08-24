@@ -1,10 +1,16 @@
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sessionmaker
+"""Async SQLAlchemy 2.0 engine and session factory."""
+from sqlalchemy.ext.asyncio import (
+    AsyncSession,
+    async_sessionmaker,
+    create_async_engine,
+)
 from sqlalchemy.orm import DeclarativeBase
+
 from app.core.config import settings
 
 
 class Base(DeclarativeBase):
-    pass
+    """Shared declarative base. All ORM models inherit from this."""
 
 
 engine = create_async_engine(
@@ -23,6 +29,10 @@ async_session_maker = async_sessionmaker(
 
 
 async def get_db() -> AsyncSession:
+    """FastAPI dependency that yields an ``AsyncSession`` per request.
+
+    The session is committed on success and rolled back on exception.
+    """
     async with async_session_maker() as session:
         try:
             yield session
@@ -34,6 +44,11 @@ async def get_db() -> AsyncSession:
             await session.close()
 
 
-async def init_db():
+async def init_db() -> None:
+    """Create all tables on startup (development convenience).
+
+    In production this is handled by Alembic; ``init_db`` is intentionally
+    permissive (it's a no-op for tables that already exist).
+    """
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)

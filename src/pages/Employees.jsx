@@ -30,7 +30,7 @@ export default function Employees() {
       setList(await api.Employee.filter({ restaurant_id: rid }, 'name', 500));
       setLoading(false);
     };
-  useEffect(() => { if (rid) load(); /* eslint-disable-next-line */ }, [rid]);
+  useEffect(() => { if (rid) load();   }, [rid]);
 
   const save = async () => {
       if (!form.name.trim()) { toast({ title: 'Informe o nome', variant: 'destructive' }); return; }

@@ -1,8 +1,8 @@
 import { Toaster } from "@/components/ui/toaster"
 import { QueryClientProvider } from '@tanstack/react-query'
 import { queryClientInstance } from '@/lib/query-client'
-import { BrowserRouter as Router, Route, Routes, Outlet, useLocation, Navigate } from 'react-router-dom'
-import { useEffect } from 'react'
+import { BrowserRouter as Router, Route, Routes, Outlet, useLocation, Navigate, useNavigate } from 'react-router-dom'
+import { useEffect, useCallback } from 'react'
 import PageNotFound from './lib/PageNotFound'
 import { AuthProvider, useAuth } from '@/lib/AuthContext'
 import UserNotRegisteredError from '@/components/UserNotRegisteredError'
@@ -27,11 +27,41 @@ import Reports from '@/pages/Reports'
 import Employees from '@/pages/Employees'
 import Settings from '@/pages/Settings'
 import CustomerMenu from '@/pages/CustomerMenu'
+import Pricing from '@/pages/Pricing'
+import { set402Handler } from '@/api/client'
+import { Button } from '@/components/ui/button'
+import { useToast } from '@/components/ui/use-toast'
 
 const GuardedApp = () => {
-  const { isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, navigateToLogin } = useAuth();
+  const { isLoadingAuth, isLoadingPublicSettings, authError, isAuthenticated, navigateToLogin, authChecked } = useAuth();
   const location = useLocation();
   const isOnboardingRoute = location.pathname === '/onboarding';
+  const { toast } = useToast();
+  const navigate = useNavigate();
+
+  // Set up 402 handler for billing required. The backend returns 402 when
+  // the restaurant's plan is not active; we show a toast and offer a CTA
+  // to jump straight to the settings page where the user can pick a plan.
+  useEffect(() => {
+    set402Handler((data) => {
+      const goToSettings = () => navigate('/settings', { replace: true });
+      toast({
+        title: 'Plano inativo',
+        description: data?.detail || 'Ative uma assinatura para continuar usando o [NEV]2 Restaurant Management System.',
+        variant: 'destructive',
+        duration: 15000,
+        action: (
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={goToSettings}
+          >
+            Escolher plano
+          </Button>
+        ),
+      });
+    });
+  }, [toast, navigate]);
 
   // Effect-driven redirect (no side effects during render)
   useEffect(() => {
@@ -57,9 +87,9 @@ const GuardedApp = () => {
     return <UserNotRegisteredError />;
   }
 
-  if (!isAuthenticated) {
-    // While the effect redirects, render nothing to avoid protected content flash
-    return null;
+  if (!isAuthenticated && authChecked) {
+    console.log('Redirecting to login');
+    return <Navigate to="/login" replace />;
   }
 
   return <RestaurantProvider><Outlet /></RestaurantProvider>;
@@ -94,6 +124,7 @@ function App() {
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/employees" element={<Employees />} />
                 <Route path="/settings" element={<Settings />} />
+                <Route path="/pricing" element={<Pricing />} />
               </Route>
             </Route>
 
@@ -103,7 +134,7 @@ function App() {
         </Router>
       </QueryClientProvider>
     </AuthProvider>
-  )
+  );
 }
 
 export default App

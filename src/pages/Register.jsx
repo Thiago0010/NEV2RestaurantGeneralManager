@@ -18,7 +18,6 @@ import {
 } from "lucide-react";
 import AuthLayout from "@/components/AuthLayout";
 import { useToast } from "@/components/ui/use-toast";
-import { safeReturnTo } from "@/lib/authReturnTo";
 import { slugify } from "@/lib/format";
 import { extractErrorMessage } from "@/lib/error";
 import { motion, AnimatePresence } from "framer-motion";
@@ -251,7 +250,7 @@ export default function Register() {
         const controller = new AbortController();
         const timeoutId = setTimeout(() => controller.abort(), 30000);
 
-        const response = await fetch(`${import.meta.env.VITE_API_URL || 'http://localhost:8000/api/v1'}/restaurant/onboarding`, {
+        const response = await fetch(`${import.meta.env.VITE_API_URL || '/api/v1'}/restaurant/onboarding`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',

@@ -2,11 +2,10 @@ import React, { useEffect, useState, useMemo, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { api } from '@/lib/restaurant-context';
 import { publicApi } from '@/api/client';
-import { formatCurrency, timeAgo } from '@/lib/format';
+import { formatCurrency } from '@/lib/format';
 import { Flame, Plus, Minus, ShoppingCart, Bell, Check, Loader2, ArrowLeft, Receipt } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
-import Footer from '@/components/Footer';
 
 const STEPS = [
   { key: 'received', label: 'Recebido' },

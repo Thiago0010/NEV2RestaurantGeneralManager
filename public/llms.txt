@@ -1,0 +1,163 @@
+# [NEV]2 Restaurant Management System - LLM Index
+
+## Overview
+**[NEV]2 Restaurant Management System** é um sistema completo de gestão para restaurantes (SaaS multi-tenant), oferecendo:
+- Gestão de mesas com QR Codes para pedidos diretos do cliente
+- Cardápio digital com categorias, produtos, fotos e preços
+- Cozinha em tempo real (tela de preparo/entrega)
+- Garçom/atendimento mobile
+- Relatórios e analytics
+- Sistema de comissão/assinatura via Mercado Pago
+
+## Target Audience
+- Donos/gerentes de restaurantes, bares, lanchonetes
+- Redes de alimentação (multi-unidade)
+- Desenvolvedores integrando via API
+
+## Key Pages (Public)
+
+### Landing / Auth
+- `/` — Dashboard principal (requer autenticação)
+- `/login` — Login com email/senha
+- `/register` — Cadastro novo restaurante (onboarding incluso)
+- `/forgot-password` — Recuperação de senha
+- `/reset-password` — Redefinição de senha
+
+### Customer-Facing (via QR Code)
+- `/r/:slug/table/:num` — **Cardápio do cliente** (público, sem auth)
+  - Parâmetros: `slug` = identificador único do restaurante, `num` = número da mesa
+  - Funciona offline-first (Service Worker)
+  - Pedidos vão direto para cozinha/garçom via WebSocket
+
+## Key Pages (Protected - Requer Auth + Plano Ativo)
+
+### Gestão Operacional
+- `/tables` — Mapa de mesas (status: livre, ocupada, conta aberta, precisa limpar)
+- `/menu` — CRUD categorias/produtos (fotos, preços, disponibilidade, destaque)
+- `/kitchen` — Tela de cozinha (tickets: novo, preparando, pronto, entregue)
+- `/waiter` — Atendimento mobile (chamados, conta, status mesas)
+- `/qr-codes` — Gera/imprime QR Codes por mesa (PNG 300x300, download zip)
+
+### Analytics & Admin
+- `/reports` — Vendas, ticket médio, produtos mais vendidos, horários de pico
+- `/employees` — Equipe (garçons, cozinheiros, admins) com roles/permissões
+- `/settings` — Configurações do restaurante + **Billing/Plano** (Mercado Pago)
+- `/pricing` — Tabela de planos pública (assinar Essencial, Profissional, Escala)
+
+### Onboarding
+- `/onboarding` — Primeiro acesso: nome, slug, telefone, endereço, cor, mensagem boas-vindas
+
+## Business Model (Billing)
+**Híbrido: Base mensal + Comissão por pedido**
+| Plano | Base/mês | Comissão | Limite pedidos/mês |
+|-------|----------|----------|-------------------|
+| Essencial | R$ 99 | 1,5% | 500 |
+| Profissional | R$ 199 | 1,0% | 2.000 |
+| Escala | R$ 399 | 0,5% | Ilimitado |
+
+- **Mercado Pago Checkout Pro** (one-time preference per billing period)
+- Webhook `payment.approved` ativa a assinatura, `payment.cancelled` desativa
+- Trial automático de 7 dias para novos restaurantes
+- Middleware bloqueia `/api/*` com 402 se plano inativo
+
+## Technical Stack
+- **Frontend**: React 18, Vite, Tailwind CSS, Radix UI, React Router v6, TanStack Query, Framer Motion
+- **Backend**: FastAPI (Python 3.11), SQLAlchemy 2.0 async, PostgreSQL (prod) / SQLite (dev), Alembic migrations
+- **Auth**: JWT (HS256), multi-tenant por `restaurant_id`
+- **Real-time**: WebSocket nativo FastAPI para pedidos/chamados cozinha/garçom
+- **Payments**: Mercado Pago SDK (`mercadopago` 2.2.1)
+- **Deploy**: Docker + Nginx, Vite build otimizado (code-splitting)
+
+## API Endpoints (Resumo)
+```
+POST   /api/v1/auth/login
+POST   /api/v1/auth/register
+POST   /api/v1/auth/refresh
+POST   /api/v1/auth/forgot-password
+POST   /api/v1/auth/reset-password
+
+GET    /api/v1/restaurant/me
+POST   /api/v1/restaurant/onboarding
+
+GET    /api/v1/tables
+POST   /api/v1/tables
+GET    /api/v1/tables/:id/qrcode
+
+GET    /api/v1/menu/categories
+POST   /api/v1/menu/categories
+GET    /api/v1/menu/products
+POST   /api/v1/menu/products
+
+GET    /api/v1/orders
+POST   /api/v1/orders
+PATCH  /api/v1/orders/:id/status
+WS     /api/v1/ws/orders
+
+GET    /api/v1/kitchen/tickets
+PATCH  /api/v1/kitchen/tickets/:id/status
+
+GET    /api/v1/reports/sales
+GET    /api/v1/reports/products
+GET    /api/v1/reports/peak-hours
+
+GET    /api/v1/billing/plans
+POST   /api/v1/billing/checkout
+POST   /api/v1/billing/portal
+GET    /api/v1/billing/status
+POST   /api/v1/webhooks/mercadopago
+
+GET    /api/v1/admin/billing/mrr
+GET    /api/v1/admin/billing/revenue
+GET    /api/v1/admin/billing/churn
+GET    /api/v1/admin/billing/by-plan
+GET    /api/v1/admin/billing/events
+```
+
+## Data Model (Principais Entidades)
+- **Restaurant** — tenant raiz (slug único, mp_customer_id, plan_status, accent_color)
+- **User** — dono/funcionário (email, role: owner/manager/waiter/kitchen)
+- **Table** — número, QR token, status, sessão ativa
+- **Category/Menu** — hierarquia, ordem, disponibilidade
+- **Product** — nome, descrição, preço, foto, categoria, destaque, tags
+- **Order** — mesa, itens, status, total, service_tax, payment_method
+- **OrderItem** — produto, quantidade, preço_unitário, observações
+- **BillingEvent** — log idempotente de webhooks Mercado Pago (auditoria)
+
+## SEO / Discoverability
+- `robots.txt` — permite `/`, `/login`, `/register`, `/r/*`; bloqueia rotas autenticadas
+- `sitemap.xml` — páginas públicas estáticas
+- `manifest.json` — PWA installável (standalone, shortcuts: mesas, cardápio, cozinha)
+- Meta tags: description, theme-color, Open Graph ready
+- `/r/:slug/table/:num` — URLs amigáveis para QR Code (compartilháveis)
+
+## Security & Compliance
+- Multi-tenant: row-level security via `restaurant_id` em todas queries
+- CORS restrito (origem configurada)
+- Rate limiting (login, register, webhook)
+- Helmet-style headers (CSP, HSTS, X-Frame-Options)
+- LGPD-ready: export/delete data endpoints planejados
+- PCI DSS: Mercado Pago cuida do card data (nenhum toca nosso backend)
+
+## Integration Points
+- **Mercado Pago**: Checkout Pro, webhooks (`payment.approved`, `payment.rejected`, `payment.refunded`), assinatura mensal
+- **WebSocket**: Pedidos real-time (cozinha/garçom), notificações
+- **QR Code**: Geração server-side (qrcode lib) + PNG
+- **Email**: Transacional (SendGrid/SES) — boas-vindas, reset senha, invoices
+- **WhatsApp Business API** (futuro): notificações de pedido/status
+
+## Roadmap / Próximos Passos
+1. PWA offline-first para cardápio cliente
+2. Multi-unidade (grupo de restaurantes)
+3. Integração iFood/Rappi (webhook orders)
+4. Fidelidade/gamificação (pontos, cupons)
+5. API pública para parceiros (webhooks outbound)
+6. White-label (domínio customizado, branding)
+
+## Contato / Suporte
+- Email: suporte@nev2restaurant.com
+- Docs: https://docs.nev2restaurant.com
+- Status: https://status.nev2restaurant.com
+- GitHub: https://github.com/Thiago0010/NEV2RestaurantGeneralManager
+
+---
+*Arquivo gerado para indexação por LLMs e crawlers de IA. Atualizado em 2026-08-21.*

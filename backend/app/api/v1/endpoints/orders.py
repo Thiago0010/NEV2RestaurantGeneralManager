@@ -13,6 +13,7 @@ from app.services.crud import OrderService, TableService
 from app.models import Restaurant, Table, OrderStatus, TableStatus
 from app.api.v1.websockets.manager import manager
 from app.core.config import settings
+from app.services.billing import record_order_usage
 
 router = APIRouter(prefix="/orders", tags=["orders"])
 
@@ -145,16 +146,20 @@ async def update_order(
     # Broadcast update
     await manager.broadcast_order_update(restaurant.id, order_read.model_dump(mode="json"))
     
-    # If order closed, update table
-    if data.status == OrderStatus.CLOSED and order.table_id:
-        table = await TableService(db).get_by_id(order.table_id, restaurant.id)
-        if table:
-            await manager.broadcast_table_update(restaurant.id, {
-                "id": str(table.id),
-                "number": table.number,
-                "status": table.status.value,
-                "current_order_id": str(table.current_order_id) if table.current_order_id else None
-            })
+    # If order closed, update table and record usage for billing
+    if data.status == OrderStatus.CLOSED:
+        if order.table_id:
+            table = await TableService(db).get_by_id(order.table_id, restaurant.id)
+            if table:
+                await manager.broadcast_table_update(restaurant.id, {
+                    "id": str(table.id),
+                    "number": table.number,
+                    "status": table.status.value,
+                    "current_order_id": str(table.current_order_id) if table.current_order_id else None
+                })
+        
+        # Record usage for billing (1 unit per closed order)
+        await record_order_usage(db, restaurant.id, quantity=1)
     
     # Also broadcast to kitchen if status changed
     if data.status:

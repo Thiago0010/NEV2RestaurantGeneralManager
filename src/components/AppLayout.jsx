@@ -1,6 +1,10 @@
 import React, { useState } from 'react';
-import { Outlet, NavLink, useNavigate, Navigate } from 'react-router-dom';
+import { Outlet, NavLink, Navigate, useLocation } from 'react-router-dom';
 import { useRestaurant, userRestaurantId, api } from '@/lib/restaurant-context';
+import { useBillingStatus } from '@/hooks/useBilling';
+import { useCheckoutReturn } from '@/hooks/useCheckoutReturn';
+import PlanBlockedOverlay from '@/components/PlanBlockedOverlay';
+import { AlertTriangle, X } from 'lucide-react';
 import {
   LayoutDashboard, LayoutGrid, ChefHat, Bell, QrCode, BarChart3, Users,
   Settings, LogOut, Utensils, Flame, Loader2
@@ -40,7 +44,6 @@ function NavItem({ item, onNavigate }) {
 }
 
 function Sidebar({ role, restaurant, onNavigate }) {
-  const navigate = useNavigate();
   const items = nav.filter((n) => n.roles.includes(role));
   return (
     <aside className="flex h-full w-64 shrink-0 flex-col border-r border-sidebar-border bg-sidebar">
@@ -78,7 +81,33 @@ function Sidebar({ role, restaurant, onNavigate }) {
 function Shell() {
   const { user, restaurant, loading } = useRestaurant();
   const [mobileOpen, setMobileOpen] = useState(false);
+  const [pastDueBannerDismissed, setPastDueBannerDismissed] = useState(false);
+  const location = useLocation();
   const role = user?.role || 'owner';
+
+  // Detecta o retorno do checkout do Mercado Pago em qualquer rota e força
+  // a revalidação do billing até virar active/trialing. Sem reload manual.
+  useCheckoutReturn();
+
+  // Plan/subscription status. We only fetch this once the user has a
+  // restaurant (the `useRestaurant` guard above means we never reach this
+  // point without one). Falls back to the restaurant payload on error so a
+  // transient 5xx on /billing/status doesn't falsely lock the user out.
+  const { data: billingStatus, isLoading: isLoadingBilling } = useBillingStatus();
+  const effectiveStatus = billingStatus?.plan_status ?? restaurant?.plan_status ?? 'none';
+  const effectivePlan = billingStatus?.plan_name ?? restaurant?.plan_name ?? 'none';
+
+  // Planos que dão acesso total ao sistema. `past_due` é soft-block (deixa
+  // passar com banner); qualquer outro status inativo trava o app.
+  const ACTIVE_PLAN_STATUSES = new Set(['active', 'trialing', 'past_due']);
+  const hasActivePlan = ACTIVE_PLAN_STATUSES.has(effectiveStatus);
+  const showPastDueBanner =
+    hasActivePlan && effectiveStatus === 'past_due' && !pastDueBannerDismissed;
+
+  // Rotas em que o overlay não deve aparecer — são justamente onde o
+  // usuário resolve o problema (assinar, ver planos, configurar).
+  const PLAN_RESOLUTION_ROUTES = new Set(['/settings', '/pricing', '/onboarding']);
+  const isOnResolutionRoute = PLAN_RESOLUTION_ROUTES.has(location.pathname);
 
   if (loading) {
     return (
@@ -90,6 +119,27 @@ function Shell() {
 
   if (!userRestaurantId(user)) {
     return <Navigate to="/onboarding" replace />;
+  }
+
+  // Aguarda o status de billing carregar antes de decidir se bloqueia.
+  // Evita um flash do app pra um usuário que nem tem plano ainda.
+  if (isLoadingBilling && !billingStatus) {
+    return (
+      <div className="grid h-screen place-items-center">
+        <Loader2 className="h-7 w-7 animate-spin text-primary" />
+      </div>
+    );
+  }
+
+  // Renderiza o overlay em tela cheia quando o plano não está ativo,
+  // exceto nas rotas em que o usuário pode resolver a situação.
+  if (!hasActivePlan && !isOnResolutionRoute) {
+    return (
+      <PlanBlockedOverlay
+        planName={effectivePlan}
+        planStatus={effectiveStatus}
+      />
+    );
   }
 
   return (
@@ -108,6 +158,40 @@ function Shell() {
       )}
 
       <div className="flex flex-1 flex-col overflow-hidden">
+        {showPastDueBanner && (
+          <div
+            role="status"
+            className="flex items-center justify-between gap-3 border-b border-yellow-300 bg-yellow-100 px-4 py-2 text-sm text-yellow-900 md:px-8"
+            data-testid="past-due-banner"
+          >
+            <div className="flex items-center gap-2 min-w-0">
+              <AlertTriangle className="h-4 w-4 flex-shrink-0" />
+              <p className="truncate">
+                <span className="font-semibold">Pagamento atrasado.</span>{' '}
+                <span className="hidden sm:inline">
+                  Regularize sua assinatura para manter o acesso completo.
+                </span>
+              </p>
+            </div>
+            <div className="flex items-center gap-2 flex-shrink-0">
+              <NavLink
+                to="/settings"
+                className="rounded-md border border-yellow-400 bg-yellow-50 px-3 py-1 text-xs font-medium text-yellow-900 transition-colors hover:bg-yellow-200"
+              >
+                Resolver agora
+              </NavLink>
+              <button
+                type="button"
+                onClick={() => setPastDueBannerDismissed(true)}
+                aria-label="Dispensar aviso"
+                className="rounded-md p-1 text-yellow-800 transition-colors hover:bg-yellow-200"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            </div>
+          </div>
+        )}
+
         <header className="flex items-center justify-between border-b border-border bg-card/60 px-4 py-3 backdrop-blur md:px-8">
           <button
             className="rounded-lg p-2 text-muted-foreground hover:bg-accent md:hidden"

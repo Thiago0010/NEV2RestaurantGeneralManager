@@ -28,7 +28,7 @@ export default function Reports() {
         setItems(allItems);
         setLoading(false);
       };
-  useEffect(() => { if (rid) load(); /* eslint-disable-next-line */ }, [rid, range]);
+  useEffect(() => { if (rid) load();   }, [rid, range]);
 
   const closed = orders.filter((o) => o.status === 'closed');
   const revenue = closed.reduce((s, o) => s + Number(o.total || 0), 0);
