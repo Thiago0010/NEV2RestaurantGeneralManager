@@ -230,3 +230,7 @@ VITE_API_URL=http://localhost:8000/api/v1
 ## Licença
 
 Proprietário - [NEV]2 Restaurant Management System
+
+**DEVELOPED BY: [NEV]²Thi_ii;**
+**POWERED BY: [NEV]².***
+**nev2dev.com**
