@@ -1,19 +1,44 @@
 from functools import lru_cache
 from pathlib import Path
+import os
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from pydantic import Field
+
+
+def _resolve_env_file() -> str:
+    """Decide qual arquivo .env carregar.
+
+    Comportamento:
+      - Se ENV_FILE estiver setado: usa esse caminho (modo teste produção)
+      - Se NÃO estiver setado: usa backend/.env (modo dev normal, igual era antes)
+    """
+    backend_dir = Path(__file__).resolve().parents[2]
+    default_env = backend_dir / ".env"
+
+    # Se ENV_FILE foi setado explicitamente, usa ele
+    explicit = os.environ.get("ENV_FILE")
+    if explicit:
+        path = Path(explicit)
+        if not path.is_absolute():
+            path = (backend_dir / explicit).resolve()
+        if path.exists():
+            return str(path)
+        print(f"[config] AVISO: ENV_FILE={explicit} não existe, usando backend/.env")
+
+    # Modo padrão (dev): sempre backend/.env
+    return str(default_env)
 
 
 class Settings(BaseSettings):
     """Centralised application settings.
 
-    Loaded from ``backend/.env`` (see ``.env.example`` for the full list of
-    supported variables). All values are cached via :func:`get_settings` so
-    importing ``settings`` anywhere in the codebase is cheap.
+    Carregado de ``backend/.env`` por padrão (modo dev).
+    Para forçar outro arquivo (ex: ``.env.test``), sete a variável
+    de ambiente ``ENV_FILE=/caminho/do/.env.test`` antes de rodar o backend.
     """
 
     model_config = SettingsConfigDict(
-        env_file=str(Path(__file__).resolve().parents[2] / ".env"),
+        env_file=_resolve_env_file(),
         case_sensitive=True,
         extra="ignore",
     )

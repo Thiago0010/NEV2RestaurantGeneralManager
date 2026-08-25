@@ -4,10 +4,10 @@ import { useToast } from "@/components/ui/use-toast";
 import { redirectToCheckout, redirectToPortal } from "@/lib/mercadopago";
 
 // Static fallback — used if the backend isn't reachable (offline dev, etc.).
+// Reflete o PLAN_CATALOG do backend (app/core/mercadopago.py):
+//   Apenas 1 plano: "essencial" com display_name "Ilimitado".
 const FALLBACK_PLANS = [
-  { name: "essencial", display_name: "Essencial", base_price: 9900, commission_pct: 1.5, limits: { tables: 5, employees: 10, products: 100 } },
-  { name: "profissional", display_name: "Profissional", base_price: 19900, commission_pct: 1.0, limits: { tables: 20, employees: 50, products: 1000 } },
-  { name: "escala", display_name: "Escala", base_price: 39900, commission_pct: 0.5, limits: { tables: 999, employees: 999, products: 9999 } },
+  { name: "essencial", display_name: "Ilimitado", base_price: 25438, commission_pct: 1.5, limits: { tables: 10000, employees: 1000, products: 721 } },
 ];
 
 /**

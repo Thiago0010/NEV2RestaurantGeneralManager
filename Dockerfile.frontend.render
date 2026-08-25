@@ -1,0 +1,27 @@
+# =============================================================
+# Dockerfile.frontend.render - Frontend React pro Render (Static Site)
+# Builda o Vite e gera /dist que o Render serve como static
+# =============================================================
+
+FROM node:20-alpine AS builder
+
+WORKDIR /app
+
+ARG VITE_API_URL=/api/v1
+ARG VITE_WS_URL=/ws
+ENV VITE_API_URL=$VITE_API_URL
+ENV VITE_WS_URL=$VITE_WS_URL
+
+COPY package*.json ./
+RUN npm ci --no-audit --no-fund
+
+COPY . .
+RUN npm run build
+
+# Stage final: só os arquivos estáticos
+FROM alpine:3.19
+RUN apk add --no-cache ca-certificates
+COPY --from=builder /app/dist /dist
+
+# O Render serve /dist direto como static site
+# Não precisa de CMD - o Render cuida disso

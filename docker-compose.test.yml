@@ -1,0 +1,46 @@
+# =============================================================
+# docker-compose.test.yml
+# Sobe Postgres + Redis LOCALMENTE pra simular produção no Render
+# (não precisa subir backend/frontend aqui - eles rodam nativos no Windows)
+#
+# Como rodar (do PowerShell na raiz do projeto):
+#   docker compose -f docker-compose.test.yml up -d
+#   docker compose -f docker-compose.test.yml down
+# =============================================================
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    container_name: nev2-postgres-test
+    environment:
+      POSTGRES_DB: restaurant_nev2_test
+      POSTGRES_USER: nev2_test
+      POSTGRES_PASSWORD: test_password_123
+    ports:
+      - "5432:5432"  # exposto só pra backend local conectar
+    volumes:
+      - postgres_test_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U nev2_test -d restaurant_nev2_test"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  redis:
+    image: redis:7-alpine
+    container_name: nev2-redis-test
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_test_data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+volumes:
+  postgres_test_data:
+  redis_test_data:

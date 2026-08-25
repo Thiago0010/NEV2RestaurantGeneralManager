@@ -144,7 +144,7 @@ export default function Login() {
         <>
           Não tem conta?{" "}
           <Link
-            to={"/onboarding" + (returnTo !== "/" ? "?returnTo=" + encodeURIComponent(returnTo) : "")}
+            to={"/register" + (returnTo !== "/" ? "?returnTo=" + encodeURIComponent(returnTo) : "")}
             className="text-primary font-medium hover:underline"
           >
             Criar estabelecimento
