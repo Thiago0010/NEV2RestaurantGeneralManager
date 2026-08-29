@@ -75,11 +75,19 @@ class ConnectionManager:
             "payload": order_data
         }
         await self.broadcast_to_restaurant(message, restaurant_id)
-        
-        # Also send to table's public connection if exists
-        if "table_id" in order_data:
-            await self.broadcast_to_table(message, restaurant_id, UUID(order_data["table_id"]))
-    
+
+        # Also send to table's public connection if exists. `table_id` may be
+        # null on takeaway-style orders that don't reference a seated table —
+        # in that case there's no public socket to notify, so skip silently
+        # instead of raising TypeError inside UUID() and crashing the request.
+        table_id = order_data.get("table_id") if isinstance(order_data, dict) else None
+        if table_id:
+            try:
+                await self.broadcast_to_table(message, restaurant_id, UUID(table_id))
+            except (TypeError, ValueError):
+                # Malformed table_id in payload (shouldn't happen, but be defensive).
+                pass
+
     async def broadcast_table_update(self, restaurant_id: UUID, table_data: dict):
         """Broadcast table status update"""
         message = {
@@ -87,9 +95,13 @@ class ConnectionManager:
             "payload": table_data
         }
         await self.broadcast_to_restaurant(message, restaurant_id)
-        
-        if "id" in table_data:
-            await self.broadcast_to_table(message, restaurant_id, UUID(table_data["id"]))
+
+        table_id = table_data.get("id") if isinstance(table_data, dict) else None
+        if table_id:
+            try:
+                await self.broadcast_to_table(message, restaurant_id, UUID(table_id))
+            except (TypeError, ValueError):
+                pass
     
     async def broadcast_service_call(self, restaurant_id: UUID, call_data: dict):
         """Broadcast new service call to waiters"""

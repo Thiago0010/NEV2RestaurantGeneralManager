@@ -55,6 +55,7 @@ class OrderStatus(str, enum.Enum):
     READY = "ready"
     DELIVERED = "delivered"
     CLOSED = "closed"
+    CANCELLED = "cancelled"
 
 
 class PaymentMethod(str, enum.Enum):
@@ -450,6 +451,13 @@ class Employee(Base):
     restaurant_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("restaurants.id"), nullable=False
     )
+    name: Mapped[str] = mapped_column(String(255), nullable=False, default="")
+    role: Mapped[UserRole] = mapped_column(
+        Enum(UserRole, name="userrole"),
+        nullable=False,
+        default=UserRole.WAITER,
+    )
+    phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     hire_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
     salary: Mapped[Optional[float]] = mapped_column(Numeric(10, 2), nullable=True)
     is_active: Mapped[bool] = mapped_column(Boolean, default=True, nullable=False)
@@ -464,7 +472,7 @@ class Employee(Base):
         nullable=False,
     )
 
-    user = relationship("User")
+    user = relationship("User", foreign_keys=[user_id])
     restaurant = relationship("Restaurant", back_populates="employees")
 
 
@@ -480,6 +488,12 @@ class ServiceCall(Base):
     table_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("tables.id"), nullable=True
     )
+    # Denormalised table number copied from the referenced table at creation
+    # time. The waiter UI and WebSocket broadcasts surface this to the staff
+    # without an extra JOIN on every poll, and the public endpoint receives
+    # it from the client so we can persist it even when the table_id lookup
+    # is skipped (and the relation isn't loaded by the time we serialize).
+    table_number: Mapped[Optional[str]] = mapped_column(String(10), nullable=True)
     type: Mapped[ServiceCallType] = mapped_column(
         Enum(ServiceCallType, name="servicecalltype"), nullable=False
     )

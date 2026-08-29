@@ -221,7 +221,9 @@ class ProductService:
         if category_id:
             query = query.where(Product.category_id == category_id)
         if available_only:
-            query = query.where(Product.available == True)
+            # The column is mapped to the Python attribute `is_available`
+            # (see `Product` in `app/models/__init__.py`), not `available`.
+            query = query.where(Product.is_available == True)
         
         total_result = await self.db.execute(select(func.count()).select_from(query.subquery()))
         total = total_result.scalar()
@@ -386,7 +388,30 @@ class OrderService:
         subtotal = float(sum(item.unit_price * item.quantity for item in data.items))
         service_tax = round(subtotal * (tax_pct / 100), 2)
         total = round(subtotal + service_tax, 2)
-        
+
+        # Reject creating a brand-new order on a table that already has an
+        # open one. The customer flow is supposed to call ``addItems`` on
+        # the existing order in that case; if a duplicate POST sneaks
+        # through (stale client state, retry, etc.) we'd otherwise split
+        # the table's ticket in two and the tracking panel would jump back
+        # and forth between the two.
+        if data.table_id:
+            table_row = await self.db.execute(
+                select(Table).where(Table.id == data.table_id)
+            )
+            table = table_row.scalar_one_or_none()
+            if table and table.current_order_id:
+                existing = await self.get_by_id(table.current_order_id, restaurant_id)
+                if existing and existing.status in (
+                    OrderStatus.RECEIVED,
+                    OrderStatus.PREPARING,
+                    OrderStatus.READY,
+                ):
+                    raise ValueError(
+                        f"Table already has an open order ({existing.id}); "
+                        "use addItems instead of creating a new one"
+                    )
+
         order = Order(
             restaurant_id=restaurant_id,
             table_id=data.table_id,
@@ -398,7 +423,7 @@ class OrderService:
         )
         self.db.add(order)
         await self.db.flush()
-        
+
         # Create order items
         for item_data in data.items:
             item = OrderItem(
@@ -411,7 +436,7 @@ class OrderService:
                 notes=item_data.notes
             )
             self.db.add(item)
-        
+
         # Update table
         table = await self.db.execute(
             select(Table).where(Table.id == data.table_id)
@@ -422,7 +447,7 @@ class OrderService:
             table.current_order_id = order.id
             from app.utils.format import today_iso
             table.opened_at = today_iso()
-        
+
         await self.db.flush()
         # Eager-load `items` (and other relations) before returning so callers
         # can serialize via Pydantic without triggering lazy-load I/O outside
@@ -480,11 +505,16 @@ class OrderService:
             new_status = update_data["status"]
             order.status = new_status
 
-            if new_status == OrderStatus.CLOSED:
+            if new_status in (OrderStatus.CLOSED, OrderStatus.CANCELLED, OrderStatus.DELIVERED):
                 from app.utils.format import today_iso
-                order.closed_at = today_iso()
+                if new_status in (OrderStatus.CLOSED, OrderStatus.CANCELLED):
+                    order.closed_at = today_iso()
 
-                # Free the table
+                # Free the table so the next customer at the same seat can
+                # start a fresh order. `delivered` is treated as terminal for
+                # this purpose too: the customer tracking panel no longer
+                # surfaces it, and leaving the table "occupied" would block
+                # a new POST /orders call.
                 if order.table_id:
                     table = await self.db.execute(
                         select(Table).where(Table.id == order.table_id)
@@ -567,8 +597,21 @@ class EmployeeService:
     def __init__(self, db: AsyncSession):
         self.db = db
     
-    async def create(self, data: EmployeeCreate, restaurant_id: UUID) -> Employee:
-        employee = Employee(**data.model_dump(), restaurant_id=restaurant_id)
+    async def create(
+        self,
+        data: EmployeeCreate,
+        restaurant_id: UUID,
+        user_id: Optional[UUID] = None,
+    ) -> Employee:
+        payload = data.model_dump()
+        if not payload.get("hire_date"):
+            from datetime import datetime, timezone
+            payload["hire_date"] = datetime.now(timezone.utc)
+        employee = Employee(
+            **payload,
+            restaurant_id=restaurant_id,
+            user_id=user_id,
+        )
         self.db.add(employee)
         await self.db.flush()
         return employee
@@ -589,17 +632,17 @@ class EmployeeService:
         page: int = 1,
         page_size: int = 500
     ) -> tuple[List[Employee], int]:
-        query = select(Employee).join(User).where(Employee.restaurant_id == restaurant_id)
+        query = select(Employee).where(Employee.restaurant_id == restaurant_id)
         if active_only:
-            query = query.where(Employee.active == True)
-        query = query.order_by(User.full_name)
+            query = query.where(Employee.is_active == True)
+        query = query.order_by(Employee.name)
         total_result = await self.db.execute(select(func.count()).select_from(query.subquery()))
         total = total_result.scalar()
         result = await self.db.execute(
             query.offset((page - 1) * page_size).limit(page_size)
         )
         return result.scalars().all(), total
-    
+
     async def update(self, employee_id: UUID, restaurant_id: UUID, data: EmployeeUpdate) -> Optional[Employee]:
         employee = await self.get_by_id(employee_id, restaurant_id)
         if not employee:
@@ -609,22 +652,34 @@ class EmployeeService:
         for field, value in update_data.items():
             setattr(employee, field, value)
 
+        # Keep the backing User in sync so login state matches the
+        # Employee row (the FK is the User, and the owner's UI reads
+        # is_active off the Employee).
+        if "name" in update_data:
+            employee.user.full_name = update_data["name"]
+        if "is_active" in update_data:
+            employee.user.is_active = update_data["is_active"]
+        if "role" in update_data:
+            employee.user.role = update_data["role"]
+
         await self.db.flush()
         await self.db.refresh(employee)
         return employee
-    
+
     async def delete(self, employee_id: UUID, restaurant_id: UUID) -> bool:
         employee = await self.get_by_id(employee_id, restaurant_id)
         if not employee:
             return False
         await self.db.delete(employee)
         return True
-    
+
     async def toggle_active(self, employee_id: UUID, restaurant_id: UUID) -> Optional[Employee]:
         employee = await self.get_by_id(employee_id, restaurant_id)
         if not employee:
             return None
-        employee.active = not employee.active
+        employee.is_active = not employee.is_active
+        if employee.user is not None:
+            employee.user.is_active = employee.is_active
         await self.db.flush()
         return employee
 

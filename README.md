@@ -234,3 +234,59 @@ Proprietário - [NEV]2 Restaurant Management System
 **DEVELOPED BY: [NEV]²Thi_ii;**
 **POWERED BY: [NEV]².***
 **nev2dev.com**
+
+---
+
+## 🚀 Guia de Hospedagem Gratuita (Sem Cartão de Crédito)
+
+Se você quer colocar o sistema no ar sem gastar nada e sem precisar inserir dados de cartão, siga este passo a passo. Usaremos o "Combo da Sobrevivência": **Neon.tech + Render + Vercel + UptimeRobot**.
+
+### 🛠️ Passo 1: Banco de Dados (Neon.tech)
+O Neon oferece PostgreSQL gratuito e não pede cartão.
+1. Crie uma conta em [neon.tech](https://neon.tech).
+2. Crie um novo projeto e um banco de dados (ex: `restaurant_db`).
+3. Na dashboard, procure por **Connection String**. 
+4. Selecione a opção **Pooled Connection** (importante para FastAPI/SQLAlchemy async).
+5. Copie a URL (ela começa com `postgresql://...`). Esta será sua `DATABASE_URL`.
+
+### ⚙️ Passo 2: Backend (Render.com)
+O Render hospeda seu código Python via GitHub.
+1. Crie uma conta em [render.com](https://render.com) usando seu GitHub.
+2. Clique em **New** $\rightarrow$ **Web Service**.
+3. Conecte o repositório deste projeto.
+4. Configurações:
+   - **Runtime**: `Python 3`
+   - **Build Command**: `pip install -r backend/requirements.txt`
+   - **Start Command**: `uvicorn app.main:app --host 0.0.0.0 --port $PORT` (certifique-se de que o caminho para o `app.main` está correto conforme a estrutura).
+5. Clique em **Advanced** $\rightarrow$ **Add Environment Variable**:
+   - `DATABASE_URL`: (Cole a URL do Neon.tech)
+   - `SECRET_KEY`: (Crie uma senha forte com 32+ caracteres)
+   - `REDIS_URL`: (O Render não tem Redis grátis. Para testes, você pode omitir ou usar o [Upstash](https://upstash.com) que tem Redis grátis sem cartão).
+   - `DEBUG`: `false`
+6. Faça o Deploy. Ao final, você receberá uma URL como `https://seu-app.onrender.com`.
+
+### 🎨 Passo 3: Frontend (Vercel)
+A Vercel é a melhor para React e não "dorme" como o Render.
+1. Crie uma conta em [vercel.com](https://vercel.com) via GitHub.
+2. Clique em **Add New** $\rightarrow$ **Project**.
+3. Importe o repositório deste projeto.
+4. No campo **Environment Variables**, adicione:
+   - `VITE_API_URL`: `https://seu-app.onrender.com/api/v1` (Use a URL que o Render te deu).
+5. Clique em **Deploy**. Você receberá uma URL como `https://seu-projeto.vercel.app`.
+
+### 🤖 Passo 4: O "Bot" para o Servidor não Dormir (UptimeRobot)
+O plano grátis do Render coloca o servidor para "dormir" após 15 min de inatividade. O primeiro acesso demora a carregar. Para evitar isso:
+1. Crie uma conta em [uptimerobot.com](https://uptimerobot.com).
+2. Clique em **Add New Monitor**.
+3. **Monitor Type**: `HTTP(s)`.
+4. **Friendly Name**: `Backend Restaurant`.
+5. **URL (or IP)**: `https://seu-app.onrender.com` (A URL do Render).
+6. **Monitoring Interval**: `5 minutes`.
+7. Salve. Agora, o bot fará uma requisição a cada 5 min, mantendo o servidor acordado 24/7.
+
+### ✅ Checklist Final de Testes
+- [ ] Tente registrar um restaurante no Frontend.
+- [ ] Verifique se o usuário foi criado no banco do Neon.
+- [ ] Tente fazer login e acessar o painel.
+- [ ] Teste a criação de um produto e veja se ele aparece na lista.
+- [ ] Teste o QR Code de uma mesa e veja se o cliente consegue acessar o cardápio.

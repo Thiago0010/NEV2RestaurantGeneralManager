@@ -28,6 +28,7 @@ import Employees from '@/pages/Employees'
 import Settings from '@/pages/Settings'
 import CustomerMenu from '@/pages/CustomerMenu'
 import Pricing from '@/pages/Pricing'
+import RoleProtectedRoute from '@/components/RoleProtectedRoute'
 import { set402Handler } from '@/api/client'
 import { Button } from '@/components/ui/button'
 import { useToast } from '@/components/ui/use-toast'
@@ -118,8 +119,12 @@ function App() {
                 <Route path="/" element={<Home />} />
                 <Route path="/tables" element={<Tables />} />
                 <Route path="/menu" element={<Menu />} />
-                <Route path="/kitchen" element={<Kitchen />} />
-                <Route path="/waiter" element={<Waiter />} />
+                <Route element={<RoleProtectedRoute allowedRoles={['kitchen']} />}>
+                  <Route path="/kitchen" element={<Kitchen />} />
+                </Route>
+                <Route element={<RoleProtectedRoute allowedRoles={['waiter']} />}>
+                  <Route path="/waiter" element={<Waiter />} />
+                </Route>
                 <Route path="/qr-codes" element={<QRCodes />} />
                 <Route path="/reports" element={<Reports />} />
                 <Route path="/employees" element={<Employees />} />

@@ -27,6 +27,7 @@ class OrderStatus(str, enum.Enum):
     READY = "ready"
     DELIVERED = "delivered"
     CLOSED = "closed"
+    CANCELLED = "cancelled"
 
 
 class PaymentMethod(str, enum.Enum):
@@ -194,7 +195,7 @@ class ProductBase(BaseModel):
     price: float
     category_id: Optional[UUID] = None
     image_url: Optional[str] = None
-    available: bool = True
+    is_available: bool = True
     featured: bool = False
 
 
@@ -208,7 +209,7 @@ class ProductUpdate(BaseModel):
     price: Optional[float] = None
     category_id: Optional[UUID] = None
     image_url: Optional[str] = None
-    available: Optional[bool] = None
+    is_available: Optional[bool] = None
     featured: Optional[bool] = None
 
 
@@ -336,25 +337,26 @@ class EmployeeBase(BaseModel):
     name: str
     role: UserRole = UserRole.WAITER
     phone: Optional[str] = None
-    active: bool = True
+    is_active: bool = True
 
 
 class EmployeeCreate(EmployeeBase):
-    pass
+    hire_date: Optional[datetime] = None
 
 
 class EmployeeUpdate(BaseModel):
     name: Optional[str] = None
     role: Optional[UserRole] = None
     phone: Optional[str] = None
-    active: Optional[bool] = None
+    is_active: Optional[bool] = None
 
 
 class EmployeeRead(EmployeeBase):
     model_config = ConfigDict(from_attributes=True)
-    
+
     id: UUID
     restaurant_id: UUID
+    hire_date: datetime
     created_at: datetime
     updated_at: datetime
 

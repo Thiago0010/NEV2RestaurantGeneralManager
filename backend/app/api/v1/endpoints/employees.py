@@ -2,6 +2,8 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from typing import Optional
+import secrets
+import re
 
 from app.api.deps import get_db, get_current_active_user, get_restaurant_from_user
 from app.schemas import (
@@ -9,9 +11,15 @@ from app.schemas import (
     PaginatedResponse
 )
 from app.services.crud import EmployeeService
-from app.models import Restaurant, UserRole
+from app.models import Restaurant, User, UserRole
+from app.core.security import get_password_hash
 
 router = APIRouter(prefix="/employees", tags=["employees"])
+
+
+def _slugify_for_email(name: str) -> str:
+    base = re.sub(r"[^a-zA-Z0-9]+", ".", name.strip().lower()).strip(".")
+    return base or "employee"
 
 
 @router.post("", response_model=EmployeeRead, status_code=status.HTTP_201_CREATED)
@@ -20,9 +28,33 @@ async def create_employee(
     restaurant: Restaurant = Depends(get_restaurant_from_user),
     db: AsyncSession = Depends(get_db)
 ):
-    """Create a new employee"""
+    """Create a new employee.
+
+    The frontend only sends name/role/phone/is_active, so we synthesize a
+    backing ``User`` row (random email + password) to satisfy the NOT NULL
+    FK on ``employees.user_id``. The employee gets a real login later when
+    the owner promotes them and resets the password.
+    """
     service = EmployeeService(db)
-    employee = await service.create(data, restaurant.id)
+
+    slug = _slugify_for_email(data.name)
+    placeholder_email = (
+        f"{slug}.{secrets.token_hex(4)}@employees.{restaurant.slug}.local"
+    )
+    random_password = secrets.token_urlsafe(24)
+    user = User(
+        email=placeholder_email,
+        hashed_password=get_password_hash(random_password),
+        full_name=data.name,
+        is_active=data.is_active,
+        role=data.role,
+        restaurant_id=restaurant.id,
+    )
+    db.add(user)
+    await db.flush()
+
+    employee = await service.create(data, restaurant.id, user_id=user.id)
+    await db.refresh(employee)
     return EmployeeRead.model_validate(employee)
 
 

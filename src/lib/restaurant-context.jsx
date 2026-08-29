@@ -286,6 +286,7 @@ export const api = {
       }
       return res;
     },
+    createStaff: (email, password, fullName, role) => authApi.createStaff(email, password, fullName, role),
     logout: () => {
       localStorage.removeItem('access_token');
       window.location.href = '/login';

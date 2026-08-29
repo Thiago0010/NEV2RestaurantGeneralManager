@@ -40,8 +40,8 @@ export default function CustomerMenu() {
       const rest = r;
       setRestaurant(rest);
       const [cats, prods, tableData] = await Promise.all([
-        api.Category.filter({ restaurant_id: rest.id }, 'sort_order', 500),
-        api.Product.filter({ restaurant_id: rest.id, available: true }, '-created_date', 1000),
+        publicApi.getCategories(rest.id),
+        publicApi.getProducts(rest.id, null),
         publicApi.getTable(rest.id, num),
       ]);
       setCategories(cats);
@@ -53,7 +53,19 @@ export default function CustomerMenu() {
       }
       if (cats.length) setActiveCat(cats[0].id);
     } catch (e) {
-      setError(e?.message || 'Não foi possível carregar o cardápio. Verifique sua conexão.');
+      // Native fetch failures (network down, CORS, mixed-content) surface as
+      // a TypeError with a generic `message` like "Failed to fetch" or
+      // "NetworkError when attempting to fetch resource." Show something
+      // actionable instead — most of the time this is the LAN-host case
+      // where the API URL was hardcoded to localhost and the request can't
+      // reach the backend.
+      const raw = e?.message || '';
+      const isNetworkFailure = /failed to fetch|networkerror|load failed/i.test(raw);
+      if (isNetworkFailure) {
+        setError('Não foi possível contactar o servidor. Verifique sua conexão e tente novamente.');
+      } else {
+        setError(raw || 'Não foi possível carregar o cardápio. Verifique sua conexão.');
+      }
     } finally {
       setLoading(false);
     }
@@ -110,17 +122,37 @@ export default function CustomerMenu() {
             notes: i.note,
           }));
           let orderId = table.current_order_id;
-          if (orderId) {
-            // append to existing open order using public endpoint
-            await api.Order.addItemsPublic(restaurant.id, orderId, itemsPayload);
-          } else {
-            // create order with items in one shot using public endpoint
-            const o = await api.Order.createPublic(restaurant.id, {
-              table_id: table.id,
-              table_number: table.number,
-              items: itemsPayload,
-            });
-            orderId = o.id;
+          try {
+            if (orderId) {
+              // append to existing open order using public endpoint
+              await api.Order.addItemsPublic(restaurant.id, orderId, itemsPayload);
+            } else {
+              // create order with items in one shot using public endpoint
+              const o = await api.Order.createPublic(restaurant.id, {
+                table_id: table.id,
+                table_number: table.number,
+                items: itemsPayload,
+              });
+              orderId = o.id;
+            }
+          } catch (e) {
+            // The backend returns 409 when the table already has an open
+            // order — happens when the cached `current_order_id` is stale
+            // (e.g. the kitchen marked the previous order as delivered
+            // but the client never refreshed). Recover by fetching the
+            // active order and adding the cart to that one instead.
+            const isConflict = e?.status === 409 || /open order/i.test(e?.message || '');
+            if (isConflict) {
+              const active = await api.Order.getPublicActive(restaurant.id, table.id);
+              if (active?.id) {
+                orderId = active.id;
+                await api.Order.addItemsPublic(restaurant.id, orderId, itemsPayload);
+              } else {
+                throw e;
+              }
+            } else {
+              throw e;
+            }
           }
           const updated = await api.Order.getPublicActive(restaurant.id, table.id);
           setOrder(updated);

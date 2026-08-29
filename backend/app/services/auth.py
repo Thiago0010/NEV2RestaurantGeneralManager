@@ -25,7 +25,7 @@ class AuthService:
         existing = await self.db.execute(select(User).where(User.email == email))
         if existing.scalar_one_or_none():
             raise HTTPException(status_code=400, detail="Email already registered")
-        
+
         restaurant = None
         if restaurant_data:
             # Check if slug exists
@@ -34,29 +34,50 @@ class AuthService:
             )
             if existing_slug.scalar_one_or_none():
                 raise HTTPException(status_code=400, detail="Slug already in use")
-            
-            # Create restaurant
-            restaurant = Restaurant(**restaurant_data.model_dump())
+
+            # Create the owner user first WITHOUT a restaurant_id (so we have
+            # an id to assign as `owner_id` on the Restaurant row, which is
+            # NOT NULL). The two rows are inserted in the same transaction
+            # but the user row no longer references an unknown restaurant
+            # id; we patch restaurant_id after the restaurant is flushed.
+            user = User(
+                email=email,
+                hashed_password=get_password_hash(password),
+                full_name=full_name,
+                role=UserRole.OWNER,
+                restaurant_id=None,
+                is_active=True,
+            )
+            self.db.add(user)
+            await self.db.flush()
+
+            # Now create the restaurant pointing at the freshly-minted user.
+            restaurant = Restaurant(**restaurant_data.model_dump(), owner_id=user.id)
             self.db.add(restaurant)
             await self.db.flush()
-        
-        # Create owner user
-        user = User(
-            email=email,
-            hashed_password=get_password_hash(password),
-            full_name=full_name,
-            role=UserRole.OWNER,
-            restaurant_id=restaurant.id if restaurant else None,
-            is_active=True
-        )
-        self.db.add(user)
-        await self.db.flush()
-        
+
+            # Backfill the user's restaurant_id (the FK is nullable, so this
+            # is safe; keeps the in-memory copy in sync without a re-query).
+            user.restaurant_id = restaurant.id
+            await self.db.flush()
+        else:
+            # No restaurant requested — register the user with no FK target.
+            user = User(
+                email=email,
+                hashed_password=get_password_hash(password),
+                full_name=full_name,
+                role=UserRole.OWNER,
+                restaurant_id=None,
+                is_active=True,
+            )
+            self.db.add(user)
+            await self.db.flush()
+
         # Create access token
         token = create_access_token(
             data={"sub": str(user.id), "restaurant_id": str(restaurant.id) if restaurant else None, "role": user.role.value}
         )
-        
+
         return user, restaurant, token
     
     async def login(self, email: str, password: str) -> tuple[User, str]:

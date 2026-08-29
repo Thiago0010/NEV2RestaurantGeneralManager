@@ -122,17 +122,39 @@ async def get_active_order_for_table(
     table_id: UUID,
     db: AsyncSession = Depends(get_db)
 ):
-    """Get active order for a table (for customer tracking)"""
-    service = OrderService(db)
-    orders, _ = await service.list(
-        restaurant_id,
-        status=[OrderStatus.RECEIVED, OrderStatus.PREPARING, OrderStatus.READY, OrderStatus.DELIVERED],
-        table_id=table_id,
-        page_size=1
+    """Get the still-tracked order for a table (for customer tracking).
+
+    Only ``received``/``preparing``/``ready`` are considered "in flight" from
+    the customer's point of view — once the order is ``delivered`` the tracking
+    panel has nothing left to show, and a brand-new visit to the menu must
+    start with no active order (so the customer can place another one).
+    Returning the stale ``delivered`` order here is what made the tracking
+    timeline render every step as "done" on the next visit.
+
+    We additionally anchor the lookup to the table's ``current_order_id`` so
+    a previous-but-detached order (e.g. an order the kitchen handed out and
+    forgot to close) doesn't reappear on the next visit.
+    """
+    from app.models import Table
+    table_row = await db.execute(
+        select(Table).where(
+            Table.restaurant_id == restaurant_id,
+            Table.id == table_id,
+        )
     )
-    if not orders:
+    table = table_row.scalar_one_or_none()
+    if not table or not table.current_order_id:
         return None
-    return OrderRead.model_validate(orders[0])
+
+    service = OrderService(db)
+    active = await service.get_by_id(table.current_order_id, restaurant_id)
+    if not active or active.status not in (
+        OrderStatus.RECEIVED,
+        OrderStatus.PREPARING,
+        OrderStatus.READY,
+    ):
+        return None
+    return OrderRead.model_validate(active)
 
 
 @router.post("/restaurant/{restaurant_id}/orders", response_model=OrderRead, status_code=status.HTTP_201_CREATED)
@@ -149,7 +171,14 @@ async def create_public_order(
         raise HTTPException(status_code=404, detail="Restaurant not found")
     
     service = OrderService(db)
-    order = await service.create(data, restaurant_id, restaurant.service_tax_percent)
+    try:
+        order = await service.create(data, restaurant_id, restaurant.service_tax_percent)
+    except ValueError as e:
+        # Service raised because the table already has an open order. The
+        # customer flow should have used addItems; surface 409 so the
+        # client can recover (its public /orders/active call will return
+        # the existing order and it can re-send the cart against that id).
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail=str(e))
     
     # Broadcast update
     order_read = OrderRead.model_validate(order)

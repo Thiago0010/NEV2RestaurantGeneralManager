@@ -1,5 +1,25 @@
 // API Client for [NEV]2 Restaurant Management System Backend
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://127.0.0.1:8000/';
+//
+// Pick the API base URL with these rules, in order:
+//   1. If VITE_API_URL is set AND looks absolute (http/https), honor it as-is.
+//      That's the override for split-host deployments (backend on a different
+//      domain, or absolute API URLs baked at build time by CI).
+//   2. Otherwise, return a RELATIVE "/api/v1/" base. This is what makes the
+//      customer QR flow actually work: when a phone on the restaurant Wi-Fi
+//      scans the code, the page is served from the LAN IP (e.g.
+//      http://192.168.0.10:5173), and the relative URL keeps the fetch on
+//      that same host. Vite's dev proxy and the production nginx.conf both
+//      rewrite /api -> backend, so the request lands on the right server
+//      without the user having to know the backend's address.
+//   3. Fall back to the loopback default (127.0.0.1:8000) only when running
+//      in a non-browser environment (Node tests, scripts) that didn't set
+//      the variable.
+const RAW_API_URL = import.meta.env.VITE_API_URL || '';
+const IS_BROWSER = typeof window !== 'undefined' && typeof window.location !== 'undefined';
+const IS_ABSOLUTE = /^https?:\/\//i.test(RAW_API_URL);
+const API_BASE_URL = IS_ABSOLUTE
+  ? RAW_API_URL
+  : (IS_BROWSER ? '/api/v1/' : 'http://127.0.0.1:8000/');
 const DEFAULT_TIMEOUT = 15000; // 15 seconds
 
 class ApiError extends Error {
