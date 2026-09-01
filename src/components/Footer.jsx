@@ -14,6 +14,11 @@ export default function Footer() {
           <span className="text-muted-foreground">·</span>
           <span className="font-mono">v1.0.0</span>
         </div>
+        <div className="flex gap-3 text-[10px] text-muted-foreground/60">
+          <a href="/docs/licenca.md" target="_blank" rel="noreferrer" className="hover:text-foreground transition-colors">Licença</a>
+          <a href="/docs/termos.md" target="_blank" rel="noreferrer" className="hover:text-foreground transition-colors">Termos de Uso</a>
+          <a href="/docs/privacidade.md" target="_blank" rel="noreferrer" className="hover:text-foreground transition-colors">Privacidade</a>
+        </div>
         <p>
           © {year} [NEV]² · [NEV]²Thi_ii · [NEV]²Henriique__
         </p>
