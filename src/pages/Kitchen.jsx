@@ -52,9 +52,13 @@ export default function Kitchen() {
     }, [rid]);
 
     const setStatus = async (order, status, msg) => {
-      await api.Order.update(order.id, { status });
-      toast({ title: msg });
-      load();
+      try {
+        await api.Order.update(order.id, { status });
+        toast({ title: msg });
+        load();
+      } catch (e) {
+        toast({ title: 'Erro', description: e.message || 'Não foi possível atualizar o status.', variant: 'destructive' });
+      }
     };
 
   if (loading) return <div className="grid h-full place-items-center"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>;

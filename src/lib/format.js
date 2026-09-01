@@ -8,8 +8,13 @@ export function slugify(str) {
     .replace(/^-+|-+$/g, '');
 }
 
+export function safeNumber(val) {
+  const n = Number(val);
+  return isNaN(n) ? 0 : n;
+}
+
 export function formatCurrency(value, currency = 'R$') {
-  const n = Number(value || 0);
+  const n = safeNumber(value);
   return `${currency} ${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 }
 

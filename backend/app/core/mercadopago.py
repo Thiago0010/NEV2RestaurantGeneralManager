@@ -224,10 +224,11 @@ def verify_webhook_signature(
     """
     secret = settings.MP_WEBHOOK_SECRET
     if not secret:
-        logger.debug(
-            "MP_WEBHOOK_SECRET not configured — skipping signature check"
+        logger.error(
+            "CRITICAL: MP_WEBHOOK_SECRET not configured. Webhook verification "
+            "cannot be performed. Set this in .env to enable secure payments."
         )
-        return True
+        return False
 
     if not x_signature or not x_request_id or not data_id:
         logger.warning(

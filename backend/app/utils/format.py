@@ -1,3 +1,5 @@
+import re
+import unicodedata
 from datetime import datetime
 from typing import Optional
 
@@ -7,7 +9,7 @@ def slugify(text: str) -> str:
     import re
     text = str(text or '').strip().lower()
     # Remove accents
-    text = text.normalize('NFD').encode('ascii', 'ignore').decode('ascii')
+    text = unicodedata.normalize('NFD', text).encode('ascii', 'ignore').decode('ascii')
     # Replace non-alphanumeric with hyphen
     text = re.sub(r'[^a-z0-9]+', '-', text)
     # Remove leading/trailing hyphens

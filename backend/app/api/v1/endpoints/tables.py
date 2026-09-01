@@ -9,8 +9,9 @@ from app.schemas import (
     PaginatedResponse
 )
 from app.services.crud import TableService
-from app.models import Restaurant
+from app.models import Restaurant, TableStatus
 from app.core.config import settings
+from app.api.v1.websockets.manager import manager
 
 router = APIRouter(prefix="/tables", tags=["tables"])
 
@@ -64,6 +65,31 @@ async def list_tables(
         page_size=page_size,
         total_pages=(total + page_size - 1) // page_size
     )
+
+
+@router.post("/{table_id}/start", response_model=TableRead)
+async def start_table(
+    table_id: UUID,
+    restaurant: Restaurant = Depends(get_restaurant_from_user),
+    db: AsyncSession = Depends(get_db)
+):
+    """Mark a table as occupied (start service)"""
+    service = TableService(db)
+    table = await service.start_table(table_id, restaurant.id)
+    if not table:
+        raise HTTPException(status_code=404, detail="Table not found")
+
+    # Broadcast update to the staff panel
+    await manager.broadcast_table_update(restaurant.id, {
+        "id": str(table.id),
+        "number": table.number,
+        "status": table.status.value,
+        "current_order_id": str(table.current_order_id) if table.current_order_id else None
+    })
+
+    tr = TableRead.model_validate(table)
+    tr.qr_code_url = f"{settings.BASE_URL.rstrip('/')}/r/qr/{table.qr_token}"
+    return tr
 
 
 @router.get("/{table_id}", response_model=TableRead)

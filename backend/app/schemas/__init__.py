@@ -197,6 +197,7 @@ class ProductBase(BaseModel):
     image_url: Optional[str] = None
     is_available: bool = True
     featured: bool = False
+    stock_quantity: float = 0.0
 
 
 class ProductCreate(ProductBase):

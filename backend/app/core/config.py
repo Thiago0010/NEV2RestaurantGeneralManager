@@ -68,6 +68,7 @@ class Settings(BaseSettings):
     SECRET_KEY_REGISTER: str = Field(default="123", validation_alias="SECRET_KEY_REGISTER")
     ALGORITHM: str = "HS256"
     ACCESS_TOKEN_EXPIRE_MINUTES: int = 60 * 24 * 7  # 7 days
+    MAX_CONCURRENT_SESSIONS: int = Field(default=5, validation_alias="MAX_CONCURRENT_SESSIONS")
 
     # ---------------------------------------------------------------- CORS
     CORS_ORIGINS: list[str] = [
@@ -100,6 +101,14 @@ class Settings(BaseSettings):
         default=19900, validation_alias="MP_PRICE_PROFISSIONAL"
     )
     MP_PRICE_ESCALA: int = Field(default=39900, validation_alias="MP_PRICE_ESCALA")
+
+    # ---------------------------------------------------------- SMTP
+    SMTP_HOST: str = Field(default="seu_smtp_host", validation_alias="SMTP_HOST")
+    SMTP_PORT: int = Field(default=587, validation_alias="SMTP_PORT")
+    SMTP_USER: str = Field(default="seu_usuario_smtp", validation_alias="SMTP_USER")
+    SMTP_PASS: str = Field(default="sua_senha_smtp", validation_alias="SMTP_PASS")
+    SMTP_TLS: bool = Field(default=True, validation_alias="SMTP_TLS")
+    FROM_EMAIL: str = Field(default="nao-responda@seudominio.com", validation_alias="FROM_EMAIL")
 
     # Trial: any newly created restaurant gets this many days of free access
     # before being forced to subscribe. Set to 0 to disable.

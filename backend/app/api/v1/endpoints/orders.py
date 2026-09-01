@@ -137,15 +137,19 @@ async def update_order(
 ):
     """Update an order (status, payment_method)"""
     service = OrderService(db)
-    order = await service.update(order_id, restaurant.id, data)
+    try:
+        order = await service.update(order_id, restaurant.id, data)
+    except ValueError as e:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(e))
+
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
-    
+
     order_read = OrderRead.model_validate(order)
-    
+
     # Broadcast update
     await manager.broadcast_order_update(restaurant.id, order_read.model_dump(mode="json"))
-    
+
     # If order closed, update table and record usage for billing
     if data.status == OrderStatus.CLOSED:
         if order.table_id:
@@ -157,14 +161,14 @@ async def update_order(
                     "status": table.status.value,
                     "current_order_id": str(table.current_order_id) if table.current_order_id else None
                 })
-        
+
         # Record usage for billing (1 unit per closed order)
         await record_order_usage(db, restaurant.id, quantity=1)
-    
+
     # Also broadcast to kitchen if status changed
     if data.status:
         await manager.broadcast_kitchen_update(restaurant.id, order_read.model_dump(mode="json"))
-    
+
     return order_read
 
 

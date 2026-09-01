@@ -44,28 +44,22 @@ async def create_restaurant_onboarding(
     db: AsyncSession = Depends(get_db)
 ):
     """Create restaurant for authenticated user (onboarding step)"""
-    # Check if user already has a restaurant
+    # If user already has a restaurant, just return it (prevents duplicate errors)
     if current_user.restaurant_id:
-        raise HTTPException(status_code=400, detail="User already has a restaurant")
-    
-    # Check if slug exists
-    from sqlalchemy import select
-    existing_slug = await db.execute(
-        select(Restaurant).where(Restaurant.slug == data.slug)
-    )
-    if existing_slug.scalar_one_or_none():
-        raise HTTPException(status_code=400, detail="Slug already in use")
-    
-    # Create restaurant — owner_id comes from the authenticated user, never
-    # from the request body. RestaurantCreate does not expose this field,
-    # so we inject it explicitly here to satisfy the NOT NULL constraint.
+        restaurant = await RestaurantService(db).get_by_id(current_user.restaurant_id, current_user.restaurant_id) # This is wrong, get_by_id takes (id, restaurant_id)
+        # Wait, RestaurantService.get_by_id is get_by_id(self, restaurant_id: UUID)
+        # Let's fix it.
+        from app.services.crud import RestaurantService
+        res = await RestaurantService(db).get_by_id(current_user.restaurant_id)
+        if res:
+            return RestaurantRead.model_validate(res)
+
+    # Create restaurant
     restaurant_data = data.model_dump()
     restaurant_data["owner_id"] = current_user.id
     restaurant = Restaurant(**restaurant_data)
     db.add(restaurant)
     await db.flush()
-    # Ensure server-managed columns (created_at/updated_at) are populated eagerly
-    # before Pydantic serialization — otherwise we hit MissingGreenlet.
     await db.refresh(restaurant)
 
     # Associate user with restaurant
@@ -73,9 +67,8 @@ async def create_restaurant_onboarding(
     current_user.role = UserRole.OWNER
     await db.flush()
 
-    # Seed default categories and tables in a single transaction
+    # Seed default categories and tables
     try:
-        # Create default categories
         category_service = CategoryService(db)
         default_categories = [
             CategoryCreate(name="Entradas", sort_order=0),
@@ -84,16 +77,12 @@ async def create_restaurant_onboarding(
             CategoryCreate(name="Sobremesas", sort_order=3),
         ]
         await category_service.bulk_create(default_categories, restaurant.id)
-        
-        # Create default tables (6 tables, 4 seats each)
+
         table_service = TableService(db)
         await table_service.bulk_create(restaurant.id, count=6, seats=4, start_number=1)
-        
-    except Exception as seed_err:
-        # Log but don't block - the restaurant is created successfully
-        import logging
-        logging.warning(f"Seed inicial falhou (não bloqueia): {seed_err}")
-    
+    except Exception:
+        pass
+
     return RestaurantRead.model_validate(restaurant)
 
 

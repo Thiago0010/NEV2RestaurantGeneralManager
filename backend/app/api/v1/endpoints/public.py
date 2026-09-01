@@ -1,4 +1,5 @@
 from fastapi import APIRouter, Depends, HTTPException, status, Query
+from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from uuid import UUID
 from typing import Optional, List
@@ -152,6 +153,7 @@ async def get_active_order_for_table(
         OrderStatus.RECEIVED,
         OrderStatus.PREPARING,
         OrderStatus.READY,
+        OrderStatus.DELIVERED,
     ):
         return None
     return OrderRead.model_validate(active)

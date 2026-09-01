@@ -1,13 +1,15 @@
 from typing import Optional
 from uuid import UUID
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
-from fastapi import HTTPException, status
+from sqlalchemy import select, delete
+from fastapi import HTTPException, status, Request
 
-from app.models import User, Restaurant
+from app.models import User, Restaurant, AuditLog, UserSession
 from app.schemas import UserCreate, UserRole, RestaurantCreate
 from app.core.security import get_password_hash, verify_password, create_access_token
+from app.core.config import settings
 from app.utils.format import slugify
+from app.services.crud import CategoryService, TableService, RestaurantService
 
 
 class AuthService:
@@ -28,18 +30,7 @@ class AuthService:
 
         restaurant = None
         if restaurant_data:
-            # Check if slug exists
-            existing_slug = await self.db.execute(
-                select(Restaurant).where(Restaurant.slug == restaurant_data.slug)
-            )
-            if existing_slug.scalar_one_or_none():
-                raise HTTPException(status_code=400, detail="Slug already in use")
-
-            # Create the owner user first WITHOUT a restaurant_id (so we have
-            # an id to assign as `owner_id` on the Restaurant row, which is
-            # NOT NULL). The two rows are inserted in the same transaction
-            # but the user row no longer references an unknown restaurant
-            # id; we patch restaurant_id after the restaurant is flushed.
+            # Create the owner user first WITHOUT a restaurant_id
             user = User(
                 email=email,
                 hashed_password=get_password_hash(password),
@@ -51,15 +42,34 @@ class AuthService:
             self.db.add(user)
             await self.db.flush()
 
-            # Now create the restaurant pointing at the freshly-minted user.
-            restaurant = Restaurant(**restaurant_data.model_dump(), owner_id=user.id)
-            self.db.add(restaurant)
-            await self.db.flush()
+            # Use RestaurantService to create the restaurant (handles unique slug)
+            restaurant_service = RestaurantService(self.db)
+            restaurant = await restaurant_service.create(restaurant_data, user.id)
 
-            # Backfill the user's restaurant_id (the FK is nullable, so this
-            # is safe; keeps the in-memory copy in sync without a re-query).
+            # Backfill the user's restaurant_id
             user.restaurant_id = restaurant.id
             await self.db.flush()
+
+            # Seed default categories and tables
+            try:
+                category_service = CategoryService(self.db)
+                default_categories = [
+                    {"name": "Entradas", "sort_order": 0},
+                    {"name": "Pratos", "sort_order": 1},
+                    {"name": "Bebidas", "sort_order": 2},
+                    {"name": "Sobremesas", "sort_order": 3},
+                ]
+                # We use bulk_create but need to pass RestaurantCreate items or just call it
+                # Let's look at CategoryService.bulk_create: it takes List[CategoryCreate]
+                from app.schemas import CategoryCreate
+                cat_items = [CategoryCreate(**c) for c in default_categories]
+                await category_service.bulk_create(cat_items, restaurant.id)
+
+                table_service = TableService(self.db)
+                await table_service.bulk_create(restaurant.id, count=6, seats=4, start_number=1)
+            except Exception:
+                # Seed failure shouldn't block registration
+                pass
         else:
             # No restaurant requested — register the user with no FK target.
             user = User(
@@ -80,28 +90,62 @@ class AuthService:
 
         return user, restaurant, token
     
-    async def login(self, email: str, password: str) -> tuple[User, str]:
+    async def login(self, email: str, password: str, request: Request) -> tuple[User, str]:
         result = await self.db.execute(select(User).where(User.email == email))
         user = result.scalar_one_or_none()
-        
+
         if not user or not verify_password(password, user.hashed_password):
             raise HTTPException(
                 status_code=status.HTTP_401_UNAUTHORIZED,
                 detail="Incorrect email or password",
                 headers={"WWW-Authenticate": "Bearer"},
             )
-        
+
         if not user.is_active:
             raise HTTPException(status_code=400, detail="Inactive user")
-        
+
         # Update last login
         from app.utils.format import today_iso
         user.last_login = today_iso()
-        
+
+        # 1. Audit Log
+        audit = AuditLog(
+            user_id=user.id,
+            restaurant_id=user.restaurant_id if user.restaurant_id else (await self.db.execute(select(Restaurant).where(Restaurant.owner_id == user.id))).scalar_one_or_none().id,
+            action="LOGIN",
+            details=f"Login successful via {request.client.host}",
+            ip_address=request.client.host,
+            device=request.headers.get("user-agent"),
+        )
+        self.db.add(audit)
+
+        # 2. Handle Concurrent Sessions
+        # We first generate the token and extract the JTI (which we added in security.py)
+        from jose import jwt
         token = create_access_token(
             data={"sub": str(user.id), "restaurant_id": str(user.restaurant_id) if user.restaurant_id else None, "role": user.role.value}
         )
-        
+        payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
+        jti = payload.get("jti")
+
+        # Check current active sessions
+        sessions_result = await self.db.execute(select(UserSession).where(UserSession.user_id == user.id))
+        active_sessions = sessions_result.scalars().all()
+
+        if len(active_sessions) >= settings.MAX_CONCURRENT_SESSIONS:
+            # Remove oldest session
+            oldest = min(active_sessions, key=lambda s: s.created_at)
+            await self.db.delete(oldest)
+
+        # Create new session
+        new_session = UserSession(
+            user_id=user.id,
+            token_jti=jti,
+            ip_address=request.client.host,
+            device=request.headers.get("user-agent"),
+        )
+        self.db.add(new_session)
+
         return user, token
     
     async def create_staff(

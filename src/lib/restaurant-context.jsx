@@ -1,6 +1,6 @@
 // Restaurant Context - replaces Base44 restaurant context
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
-import { authApi, restaurantApi, tableApi, categoryApi, productApi, orderApi, employeeApi, serviceCallApi, request } from '@/api/client';
+import { authApi, restaurantApi, tableApi, categoryApi, productApi, orderApi, employeeApi, serviceCallApi, inventoryApi, analyticsApi, request } from '@/api/client';
 
 const defaultContext = {
   user: null,
@@ -248,6 +248,14 @@ export const api = {
     get: (id) => employeeApi.get(id),
   },
 
+  // Inventory
+  Inventory: {
+    updateStock: (data) => inventoryApi.updateStock(data),
+    getReport: () => inventoryApi.getReport(),
+    setRecipe: (productId, data) => inventoryApi.setRecipe(productId, data),
+    getRecipe: (productId) => inventoryApi.getRecipe(productId),
+  },
+
   // Service Calls
     ServiceCall: {
       filter: (params, sort, limit) => {
@@ -312,8 +320,14 @@ export const api = {
     getStatus: () => 
       request('/billing/status'),
   
-    getPlans: () => 
+    getPlans: () =>
       request('/billing/plans'),
+  },
+
+  // Analytics
+  analytics: {
+    getRevenue: (params) => analyticsApi.getRevenue(params),
+    getTopProducts: () => analyticsApi.getTopProducts(),
   },
 };
 

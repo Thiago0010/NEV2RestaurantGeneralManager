@@ -2,7 +2,7 @@ from fastapi import APIRouter
 
 from app.api.v1.endpoints import (
     auth, restaurant, categories, products, tables,
-    orders, employees, service_calls, public
+    orders, employees, service_calls, public, inventory, analytics, billing
 )
 from app.api.v1.websockets import routes as websocket_routes
 
@@ -31,6 +31,15 @@ api_router.include_router(employees.router)
 
 # Service Calls
 api_router.include_router(service_calls.router)
+
+# Inventory
+api_router.include_router(inventory.router)
+
+# Analytics
+api_router.include_router(analytics.router, prefix="/analytics", tags=["analytics"])
+
+# Billing
+api_router.include_router(billing.router, prefix="/billing", tags=["billing"])
 
 # Public (no auth)
 api_router.include_router(public.router)

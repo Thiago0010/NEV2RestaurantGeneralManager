@@ -72,12 +72,13 @@ async def get_product(
 async def update_product(
     product_id: UUID,
     data: ProductUpdate,
+    current_user = Depends(get_current_active_user),
     restaurant: Restaurant = Depends(get_restaurant_from_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Update a product"""
     service = ProductService(db)
-    product = await service.update(product_id, restaurant.id, data)
+    product = await service.update(product_id, restaurant.id, current_user.id, data)
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
     return ProductRead.model_validate(product)
@@ -104,11 +105,12 @@ async def toggle_product_field(
 @router.delete("/{product_id}", status_code=status.HTTP_204_NO_CONTENT)
 async def delete_product(
     product_id: UUID,
+    current_user = Depends(get_current_active_user),
     restaurant: Restaurant = Depends(get_restaurant_from_user),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete a product"""
     service = ProductService(db)
-    success = await service.delete(product_id, restaurant.id)
+    success = await service.delete(product_id, restaurant.id, current_user.id)
     if not success:
         raise HTTPException(status_code=404, detail="Product not found")

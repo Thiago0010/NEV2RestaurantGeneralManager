@@ -99,7 +99,7 @@ function Products() {
   const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [edit, setEdit] = useState(null);
-  const [form, setForm] = useState({ name: '', description: '', price: '', category_id: '', image_url: '', is_available: true, featured: false });
+  const [form, setForm] = useState({ name: '', description: '', price: '', category_id: '', image_url: '', is_available: true, featured: false, stock_quantity: 0 });
 
   const load = async () => {
       const [p, c] = await Promise.all([
@@ -123,6 +123,7 @@ function Products() {
         image_url: form.image_url,
         is_available: form.is_available,
         featured: form.featured,
+        stock_quantity: Number(form.stock_quantity),
       };
       if (edit) await api.Product.update(edit.id, payload);
       else await api.Product.create(payload);
@@ -137,6 +138,21 @@ function Products() {
       load();
     };
     const remove = async (p) => { await api.Product.delete(p.id); load(); };
+
+    const adjustStock = async (p, amount) => {
+      try {
+        await api.Inventory.updateStock({
+          product_id: p.id,
+          quantity: amount,
+          movement_type: amount > 0 ? 'IN' : 'OUT',
+          reason: 'Ajuste manual via Menu'
+        });
+        load();
+        toast({ title: 'Estoque atualizado' });
+      } catch (e) {
+        toast({ title: 'Erro', description: e.message, variant: 'destructive' });
+      }
+    };
 
   if (loading) return <Spinner />;
   return (
@@ -171,8 +187,13 @@ function Products() {
                     <span className="text-xs text-muted-foreground">Disponível</span>
                     <Switch checked={p.is_available} onCheckedChange={() => toggle(p, 'is_available')} />
                   </div>
+                  <div className="flex items-center gap-2">
+                    <span className="text-xs text-muted-foreground">Estoque: {p.stock_quantity || 0}</span>
+                    <button onClick={() => adjustStock(p, 1)} className="rounded-md bg-secondary px-2 py-0.5 text-xs hover:bg-secondary-foreground/20">+</button>
+                    <button onClick={() => adjustStock(p, -1)} className="rounded-md bg-secondary px-2 py-0.5 text-xs hover:bg-secondary-foreground/20">-</button>
+                  </div>
                   <div className="flex gap-1">
-                    <button onClick={() => { setEdit(p); setForm({ name: p.name, description: p.description, price: String(p.price), category_id: p.category_id, image_url: p.image_url, is_available: p.is_available, featured: p.featured }); setOpen(true); }} className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground"><Pencil className="h-4 w-4" /></button>
+                    <button onClick={() => { setEdit(p); setForm({ name: p.name, description: p.description, price: String(p.price), category_id: p.category_id, image_url: p.image_url, is_available: p.is_available, featured: p.featured, stock_quantity: String(p.stock_quantity || 0) }); setOpen(true); }} className="rounded-lg p-1.5 text-muted-foreground hover:text-foreground"><Pencil className="h-4 w-4" /></button>
                     <button onClick={() => remove(p)} className="rounded-lg p-1.5 text-muted-foreground hover:text-destructive"><Trash2 className="h-4 w-4" /></button>
                   </div>
                 </div>
@@ -200,6 +221,10 @@ function Products() {
                 </Select>
               </div>
               <div className="space-y-1.5"><Label>Imagem (URL)</Label><Input value={form.image_url} onChange={(e) => setForm({ ...form, image_url: e.target.value })} placeholder="https://..." /></div>
+            </div>
+            <div className="space-y-1.5">
+              <Label>Estoque Inicial/Atual</Label>
+              <Input type="number" value={form.stock_quantity} onChange={(e) => setForm({ ...form, stock_quantity: e.target.value })} />
             </div>
             <div className="flex items-center gap-6">
               <label className="flex items-center gap-2 text-sm"><Switch checked={form.is_available} onCheckedChange={(v) => setForm({ ...form, is_available: v })} /> Disponível</label>

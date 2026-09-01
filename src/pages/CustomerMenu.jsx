@@ -75,23 +75,43 @@ export default function CustomerMenu() {
 
   // track open order for this table
     useEffect(() => {
-      if (!table) return;
+      if (!table || !restaurant) return;
+
+      // Real-time updates via WebSocket
+      const ws = new WebSocket(`ws://${window.location.host}/api/v1/ws/public/restaurant/${restaurant.id}/table/${table.id}`);
+
+      ws.onmessage = (event) => {
+        try {
+          const msg = JSON.parse(event.data);
+          if (msg.type === 'order_update' && msg.payload) {
+            setOrder(msg.payload);
+            setOrderItems(msg.payload.items || []);
+          }
+        } catch (e) {
+          console.error('WS message error:', e);
+        }
+      };
+
+      ws.onerror = (e) => console.error('WS error:', e);
+
       let active = true;
       const poll = async () => {
         const o = await api.Order.getPublicActive(restaurant?.id, table.id);
         if (!active) return;
         if (o) {
           setOrder(o);
-          // `getPublicActive` already returns the order with its items embedded
-          // (backend uses selectinload). No second call needed — and the
-          // authenticated `GET /orders/{id}` returns 404 for anonymous clients.
-          setOrderItems(o.items || []);
+          setOrderItems(o?.items || []);
         }
       };
+
       poll();
-      const unsub = api.Order.subscribe(poll);
       const t = setInterval(poll, 8000);
-      return () => { active = false; unsub(); clearInterval(t); };
+
+      return () => {
+        active = false;
+        ws.close();
+        clearInterval(t);
+      };
     }, [table, restaurant]);
 
   const cartList = useMemo(() => Object.entries(cart).map(([pid, q]) => {
@@ -121,32 +141,30 @@ export default function CustomerMenu() {
             unit_price: i.price,
             notes: i.note,
           }));
+
+          let finalOrder = null;
           let orderId = table.current_order_id;
+
           try {
             if (orderId) {
               // append to existing open order using public endpoint
-              await api.Order.addItemsPublic(restaurant.id, orderId, itemsPayload);
+              finalOrder = await api.Order.addItemsPublic(restaurant.id, orderId, itemsPayload);
             } else {
               // create order with items in one shot using public endpoint
-              const o = await api.Order.createPublic(restaurant.id, {
+              finalOrder = await api.Order.createPublic(restaurant.id, {
                 table_id: table.id,
                 table_number: table.number,
                 items: itemsPayload,
               });
-              orderId = o.id;
             }
           } catch (e) {
             // The backend returns 409 when the table already has an open
             // order — happens when the cached `current_order_id` is stale
-            // (e.g. the kitchen marked the previous order as delivered
-            // but the client never refreshed). Recover by fetching the
-            // active order and adding the cart to that one instead.
             const isConflict = e?.status === 409 || /open order/i.test(e?.message || '');
             if (isConflict) {
               const active = await api.Order.getPublicActive(restaurant.id, table.id);
               if (active?.id) {
-                orderId = active.id;
-                await api.Order.addItemsPublic(restaurant.id, orderId, itemsPayload);
+                finalOrder = await api.Order.addItemsPublic(restaurant.id, active.id, itemsPayload);
               } else {
                 throw e;
               }
@@ -154,9 +172,9 @@ export default function CustomerMenu() {
               throw e;
             }
           }
-          const updated = await api.Order.getPublicActive(restaurant.id, table.id);
-          setOrder(updated);
-          setOrderItems(updated?.items || []);
+
+          setOrder(finalOrder);
+          setOrderItems(finalOrder?.items || []);
           setCart({}); setNotes({});
           setView('tracking');
           toast({ title: 'Pedido enviado!', description: `Mesa ${table.number}` });

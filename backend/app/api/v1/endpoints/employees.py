@@ -5,7 +5,7 @@ from typing import Optional
 import secrets
 import re
 
-from app.api.deps import get_db, get_current_active_user, get_restaurant_from_user
+from app.api.deps import get_db, get_current_active_user, get_restaurant_from_user, require_role
 from app.schemas import (
     EmployeeCreate, EmployeeUpdate, EmployeeRead,
     PaginatedResponse
@@ -16,7 +16,6 @@ from app.core.security import get_password_hash
 
 router = APIRouter(prefix="/employees", tags=["employees"])
 
-
 def _slugify_for_email(name: str) -> str:
     base = re.sub(r"[^a-zA-Z0-9]+", ".", name.strip().lower()).strip(".")
     return base or "employee"
@@ -26,6 +25,7 @@ def _slugify_for_email(name: str) -> str:
 async def create_employee(
     data: EmployeeCreate,
     restaurant: Restaurant = Depends(get_restaurant_from_user),
+    current_user: User = Depends(require_role("owner", "manager")),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a new employee.
@@ -98,6 +98,7 @@ async def update_employee(
     employee_id: UUID,
     data: EmployeeUpdate,
     restaurant: Restaurant = Depends(get_restaurant_from_user),
+    current_user: User = Depends(require_role("owner", "manager")),
     db: AsyncSession = Depends(get_db)
 ):
     """Update an employee"""
@@ -112,6 +113,7 @@ async def update_employee(
 async def toggle_employee_active(
     employee_id: UUID,
     restaurant: Restaurant = Depends(get_restaurant_from_user),
+    current_user: User = Depends(require_role("owner", "manager")),
     db: AsyncSession = Depends(get_db)
 ):
     """Toggle employee active status"""
@@ -126,6 +128,7 @@ async def toggle_employee_active(
 async def delete_employee(
     employee_id: UUID,
     restaurant: Restaurant = Depends(get_restaurant_from_user),
+    current_user: User = Depends(require_role("owner", "manager")),
     db: AsyncSession = Depends(get_db)
 ):
     """Delete an employee"""

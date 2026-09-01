@@ -29,7 +29,8 @@ def upgrade() -> None:
     # (used in dev) has no enum type at the storage layer — the constraint is
     # enforced by SQLAlchemy at the ORM/Pydantic layer, so the existing
     # ``init_db`` path picks up the new value automatically.
-    op.execute("ALTER TYPE orderstatus ADD VALUE IF NOT EXISTS 'cancelled'")
+    # op.execute("ALTER TYPE orderstatus ADD VALUE IF NOT EXISTS 'cancelled'")
+    pass
 
 
 def downgrade() -> None:

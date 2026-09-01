@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { api } from '@/lib/restaurant-context';
 import { useRestaurant, userRestaurantId } from '@/lib/restaurant-context';
-import { formatCurrency, dayKey } from '@/lib/format';
+import { formatCurrency, dayKey, safeNumber } from '@/lib/format';
 import { Loader2, Download } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/components/ui/use-toast';
@@ -15,40 +15,42 @@ export default function Reports() {
   const [range, setRange] = useState('30');
   const [orders, setOrders] = useState([]);
   const [items, setItems] = useState([]);
+  const [revenueStats, setRevenueStats] = useState({ total_revenue: 0, order_count: 0 });
+  const [topProductsStats, setTopProductsStats] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const load = async () => {
         const since = new Date(Date.now() - Number(range) * 86400000).toISOString();
-        const [o] = await Promise.all([
+        const [o, rs, tp] = await Promise.allSettled([
           api.Order.filter({ restaurant_id: rid, created_date_gte: since }, '-created_date', 500),
+          api.analytics.getRevenue({ since }),
+          api.analytics.getTopProducts(),
         ]);
-        setOrders(o);
-        // Extract items from orders (OrderRead includes items)
-        const allItems = o.flatMap(order => order.items || []);
+        const ordersList = o.status === 'fulfilled' ? o.value : [];
+        setOrders(ordersList);
+        setRevenueStats(rs.status === 'fulfilled' ? rs.value : { total_revenue: 0, order_count: 0 });
+        setTopProductsStats(tp.status === 'fulfilled' ? tp.value : []);
+        const allItems = ordersList.flatMap(order => order.items || []);
         setItems(allItems);
         setLoading(false);
       };
   useEffect(() => { if (rid) load();   }, [rid, range]);
 
   const closed = orders.filter((o) => o.status === 'closed');
-  const revenue = closed.reduce((s, o) => s + Number(o.total || 0), 0);
+  const revenue = revenueStats.total_revenue;
   const cancelled = orders.filter((o) => o.status === 'cancelled').length;
 
   const byDay = useMemo(() => {
     const m = {};
-    closed.forEach((o) => { const k = dayKey(o.created_date); m[k] = (m[k] || 0) + Number(o.total || 0); });
+    closed.forEach((o) => {
+      const k = dayKey(o.created_date);
+      const val = safeNumber(o.total);
+      m[k] = (m[k] || 0) + val;
+    });
     return Object.entries(m).sort((a, b) => a[0].localeCompare(b[0])).map(([d, v]) => ({ d, v }));
   }, [closed]);
 
-  const byProduct = useMemo(() => {
-    const m = {};
-    items.forEach((i) => {
-      if (!m[i.product_name]) m[i.product_name] = { qty: 0, revenue: 0 };
-      m[i.product_name].qty += Number(i.quantity || 0);
-      m[i.product_name].revenue += Number(i.unit_price || 0) * Number(i.quantity || 0);
-    });
-    return Object.entries(m).map(([name, v]) => ({ name, ...v })).sort((a, b) => b.revenue - a.revenue);
-  }, [items]);
+  const byProduct = topProductsStats;
 
   const byTable = useMemo(() => {
     const m = {};
@@ -87,8 +89,8 @@ export default function Reports() {
 
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <Card label="Faturamento" value={formatCurrency(revenue, restaurant?.currency)} />
-        <Card label="Pedidos fechados" value={closed.length} />
-        <Card label="Ticket médio" value={formatCurrency(closed.length ? revenue / closed.length : 0, restaurant?.currency)} />
+        <Card label="Pedidos fechados" value={revenueStats.order_count} />
+        <Card label="Ticket médio" value={formatCurrency(revenueStats.order_count ? revenue / revenueStats.order_count : 0, restaurant?.currency)} />
         <Card label="Cancelamentos" value={cancelled} />
       </div>
 

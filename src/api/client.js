@@ -243,26 +243,40 @@ export const tableApi = {
     const query = buildQuery(params);
     return request(`/tables?${query}`);
   },
-  
+
   get: (id) => request(`/tables/${id}`),
-  
+
   create: (data) => request('/tables', {
     method: 'POST',
     body: data,
   }),
-  
+
   update: (id, data) => request(`/tables/${id}`, {
     method: 'PUT',
     body: data,
   }),
-  
+
   delete: (id) => request(`/tables/${id}`, {
     method: 'DELETE',
   }),
-  
+
   getQr: (id) => request(`/tables/${id}/qr`),
-  
+
   getAllQr: () => request('/tables/qr/all'),
+};
+
+// Inventory endpoints
+export const inventoryApi = {
+  updateStock: (data) => request('/inventory/update', {
+    method: 'POST',
+    body: data,
+  }),
+  getReport: () => request('/inventory/report'),
+  setRecipe: (productId, data) => request(`/inventory/products/${productId}/recipe`, {
+    method: 'POST',
+    body: data,
+  }),
+  getRecipe: (productId) => request(`/inventory/products/${productId}/recipe`),
 };
 
 // Order endpoints
@@ -364,6 +378,15 @@ export const serviceCallApi = {
     method: 'POST',
     body: data,
   }),
+};
+
+// Analytics endpoints
+export const analyticsApi = {
+  getRevenue: (params) => {
+    const query = buildQuery(params);
+    return request(`/analytics/revenue?${query}`);
+  },
+  getTopProducts: () => request('/analytics/top-products'),
 };
 
 // Public endpoints (no auth)

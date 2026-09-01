@@ -227,6 +227,12 @@ class User(Base):
     last_login: Mapped[Optional[datetime]] = mapped_column(
         DateTime(timezone=True), nullable=True
     )
+    reset_token_hash: Mapped[Optional[str]] = mapped_column(
+        String(255), nullable=True
+    )
+    reset_token_expires: Mapped[Optional[datetime]] = mapped_column(
+        DateTime(timezone=True), nullable=True
+    )
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -284,6 +290,7 @@ class Product(Base):
     name: Mapped[str] = mapped_column(String(255), nullable=False)
     description: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
     price: Mapped[float] = mapped_column(Numeric(10, 2), nullable=False)
+    cost_price: Mapped[float] = mapped_column(Numeric(10, 2), default=0, nullable=False)
     category_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("categories.id"), nullable=False
     )
@@ -294,6 +301,8 @@ class Product(Base):
     featured: Mapped[bool] = mapped_column(Boolean, default=False, nullable=False)
     image_url: Mapped[Optional[str]] = mapped_column(String(512), nullable=True)
     preparation_time: Mapped[Optional[int]] = mapped_column(Integer, nullable=True)
+    stock_quantity: Mapped[float] = mapped_column(Numeric(12, 3), default=0, nullable=False)
+    unit: Mapped[str] = mapped_column(String(20), default="unit", nullable=False)
 
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
@@ -555,6 +564,126 @@ class BillingEvent(Base):
 
     restaurant = relationship("Restaurant", back_populates="billing_events")
 
+class InventoryMovement(Base):
+    """Audit trail for every stock change (IN/OUT)."""
+    __tablename__ = "inventory_movements"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("products.id"), nullable=False
+    )
+    restaurant_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("restaurants.id"), nullable=False
+    )
+    quantity: Mapped[float] = mapped_column(Numeric(12, 3), nullable=False)
+    movement_type: Mapped[str] = mapped_column(String(20), nullable=False) # 'IN', 'OUT', 'ADJUSTMENT'
+    reason: Mapped[Optional[str]] = mapped_column(String(255), nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    product = relationship("Product")
+    restaurant = relationship("Restaurant")
+
+class ProductRecipe(Base):
+    """Bill of Materials (BOM) linking a product to its ingredients."""
+    __tablename__ = "product_recipes"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    product_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("products.id"), nullable=False
+    )
+    ingredient_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("products.id"), nullable=False
+    )
+    quantity: Mapped[float] = mapped_column(Numeric(12, 3), nullable=False)
+    restaurant_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("restaurants.id"), nullable=False
+    )
+
+    product = relationship("Product", foreign_keys=[product_id])
+    ingredient = relationship("Product", foreign_keys=[ingredient_id])
+    restaurant = relationship("Restaurant")
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+class AuditLog(Base):
+    """Log of critical administrative actions for security and compliance."""
+    __tablename__ = "audit_logs"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id"), nullable=False
+    )
+    restaurant_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("restaurants.id"), nullable=False
+    )
+    action: Mapped[str] = mapped_column(String(255), nullable=False)
+    details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+    ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
+    device: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+
+class UserSession(Base):
+    """Track active user sessions for concurrent limit control."""
+    __tablename__ = "user_sessions"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    user_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("users.id"), nullable=False, index=True
+    )
+    token_jti: Mapped[str] = mapped_column(
+        String(255), unique=True, index=True, nullable=False
+    )
+    ip_address: Mapped[Optional[str]] = mapped_column(String(45), nullable=True)
+    device: Mapped[Optional[str]] = mapped_column(Text, nullable=True)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+    last_used_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), onupdate=func.now(), nullable=False
+    )
+
+    user = relationship("User")
+
+
+
+class Expense(Base):
+    """Track operational expenses (rent, utilities, etc.)"""
+    __tablename__ = "expenses"
+
+    id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), primary_key=True, default=uuid.uuid4
+    )
+    restaurant_id: Mapped[uuid.UUID] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("restaurants.id"), nullable=False
+    )
+    description: Mapped[str] = mapped_column(String(255), nullable=False)
+    amount: Mapped[float] = mapped_column(Numeric(12, 2), nullable=False)
+    category: Mapped[str] = mapped_column(String(50), nullable=False) # e.g., 'Rent', 'Electricity', 'Salary'
+    date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), server_default=func.now(), nullable=False
+    )
+
+    restaurant = relationship("Restaurant")
 
 __all__ = [
     "Base",
@@ -576,4 +705,10 @@ __all__ = [
     "Employee",
     "ServiceCall",
     "BillingEvent",
+    "InventoryMovement",
+    "ProductRecipe",
+    "AuditLog",
+    "UserSession",
+    "Expense",
+
 ]

@@ -1,7 +1,7 @@
 import React, { useEffect, useState, useMemo } from 'react';
 import { api } from '@/lib/restaurant-context';
 import { useRestaurant, userRestaurantId } from '@/lib/restaurant-context';
-import { formatCurrency, isToday, dayKey } from '@/lib/format';
+import { formatCurrency, isToday, dayKey, safeNumber } from '@/lib/format';
 import {
   BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid
 } from 'recharts';
@@ -38,31 +38,36 @@ export default function Home() {
   const [orders, setOrders] = useState([]);
   const [tables, setTables] = useState([]);
   const [calls, setCalls] = useState([]);
+  const [revenueStats, setRevenueStats] = useState({ total_revenue: 0, order_count: 0 });
+  const [topProductsStats, setTopProductsStats] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
   const load = async () => {
       if (!rid) { setLoading(false); return; }
-    
+
       setLoading(true);
       setError(null);
       try {
-        const days = range === 'today' ? 1 : Number(range);
-        const since = new Date(Date.now() - days * 86400000).toISOString();
-      
-        // Use proper date filter parameters
-        const [o, t, c] = await Promise.allSettled([
-                  api.Order.filter({ 
-                    restaurant_id: rid, 
-                    created_date_gte: since 
-                  }, '-created_date', 500),
+        // Fetch 30 days to ensure we have all orders that could be closed today
+        const since = new Date(Date.now() - 30 * 86400000).toISOString();
+
+        const [o, t, c, rs, tp] = await Promise.allSettled([
+          api.Order.filter({
+            restaurant_id: rid,
+            created_date_gte: since
+          }, '-created_date', 500),
           api.Table.filter({ restaurant_id: rid }, '-created_date', 500),
           api.ServiceCall.filter({ restaurant_id: rid, status: 'pending' }, '-created_date', 200),
+          api.analytics.getRevenue({ since }),
+          api.analytics.getTopProducts(),
         ]);
-      
+
         setOrders(o.status === 'fulfilled' ? o.value : []);
         setTables(t.status === 'fulfilled' ? t.value : []);
         setCalls(c.status === 'fulfilled' ? c.value : []);
+        setRevenueStats(rs.status === 'fulfilled' ? rs.value : { total_revenue: 0, order_count: 0 });
+        setTopProductsStats(tp.status === 'fulfilled' ? tp.value : []);
       } catch (err) {
         setError(err.message || 'Erro ao carregar dashboard');
         setOrders([]); setTables([]); setCalls([]);
@@ -78,9 +83,21 @@ export default function Home() {
     return orders.filter((o) => isToday(o.created_date));
   }, [orders, range]);
 
-  const closed = filtered.filter((o) => o.status === 'closed');
-  const revenueToday = closed.reduce((s, o) => s + Number(o.total || 0), 0);
-  const ticket = closed.length ? revenueToday / closed.length : 0;
+  const closed = useMemo(() => {
+    return orders.filter((o) => o.status === 'closed');
+  }, [orders]);
+
+  const revenueToday = useMemo(() => {
+    return closed
+      .filter((o) => isToday(o.closed_at))
+      .reduce((s, o) => s + safeNumber(o.total), 0);
+  }, [closed]);
+
+  const ticket = useMemo(() => {
+    const count = closed.filter((o) => isToday(o.closed_at)).length;
+    return count ? revenueToday / count : 0;
+  }, [closed, revenueToday]);
+
   const occupied = tables.filter((t) => t.status !== 'free').length;
   const free = tables.filter((t) => t.status === 'free').length;
   const preparing = orders.filter((o) => ['received', 'preparing'].includes(o.status) && isToday(o.created_date)).length;
@@ -88,24 +105,14 @@ export default function Home() {
   const byDay = useMemo(() => {
     const map = {};
     closed.forEach((o) => {
-      const k = dayKey(o.created_date);
-      map[k] = (map[k] || 0) + Number(o.total || 0);
+      const k = dayKey(o.closed_at || o.created_date);
+      const val = safeNumber(o.total);
+      map[k] = (map[k] || 0) + val;
     });
     return Object.entries(map).map(([k, v]) => ({ day: k, value: +v.toFixed(2) }));
   }, [closed]);
 
-  const topProducts = useMemo(() => {
-    // Produtos top a partir dos pedidos fechados (sem OrderItem endpoint)
-    const map = {};
-    closed.forEach(o => {
-      if (o.items) {
-        o.items.forEach(i => {
-          map[i.product_name] = (map[i.product_name] || 0) + Number(i.quantity || 0);
-        });
-      }
-    });
-    return Object.entries(map).map(([name, qty]) => ({ name, qty })).sort((a, b) => b.qty - a.qty).slice(0, 6);
-  }, [closed]);
+  const topProducts = topProductsStats;
 
   if (loading) return <div className="grid h-full place-items-center"><Loader2 className="h-7 w-7 animate-spin text-primary" /></div>;
   if (error) return <div className="p-4 text-destructive text-center">{error}</div>;
