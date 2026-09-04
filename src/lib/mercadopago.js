@@ -16,7 +16,8 @@ const isSandbox = () => {
   // intentionally loose so devs don't get a 502 from MP for trying to
   // pay with a test card in production.
   if (typeof import.meta.env.VITE_MP_PUBLIC_KEY === "string") {
-    return import.meta.env.VITE_MP_PUBLIC_KEY.startsWith("pk_test_");
+    const publicKey = import.meta.env.VITE_MP_PUBLIC_KEY;
+    return publicKey.startsWith("pk_test_") || publicKey.startsWith("TEST-");
   }
   return true;
 };

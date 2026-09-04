@@ -55,7 +55,7 @@ async def list_tables(
         tr = TableRead.model_validate(t)
         # SÓ gera QR code URL se solicitado
         if include_qr:
-            tr.qr_code_url = f"{settings.BASE_URL.rstrip('/')}/r/qr/{t.qr_token}"
+            tr.qr_code_url = f"{settings.FRONTEND_URL.rstrip('/')}/r/qr/{t.qr_token}"
         table_reads.append(tr)
     
     return PaginatedResponse(
@@ -88,7 +88,7 @@ async def start_table(
     })
 
     tr = TableRead.model_validate(table)
-    tr.qr_code_url = f"{settings.BASE_URL.rstrip('/')}/r/qr/{table.qr_token}"
+    tr.qr_code_url = f"{settings.FRONTEND_URL.rstrip('/')}/r/qr/{table.qr_token}"
     return tr
 
 
@@ -105,7 +105,7 @@ async def get_table(
         raise HTTPException(status_code=404, detail="Table not found")
     
     tr = TableRead.model_validate(table)
-    tr.qr_code_url = f"{settings.BASE_URL.rstrip('/')}/r/qr/{table.qr_token}"
+    tr.qr_code_url = f"{settings.FRONTEND_URL.rstrip('/')}/r/qr/{table.qr_token}"
     return tr
 
 
@@ -117,7 +117,7 @@ async def get_table_qr(
 ):
     """Get QR code for a table"""
     service = TableService(db)
-    qr_data = await service.get_qr_code(table_id, restaurant.id, settings.BASE_URL)
+    qr_data = await service.get_qr_code(table_id, restaurant.id, settings.FRONTEND_URL)
     if not qr_data:
         raise HTTPException(status_code=404, detail="Table not found")
     return QRCodeResponse(**qr_data)
@@ -134,7 +134,7 @@ async def get_all_qr_codes(
     
     results = []
     for table in tables:
-        qr_data = await service.get_qr_code(table.id, restaurant.id, settings.BASE_URL)
+        qr_data = await service.get_qr_code(table.id, restaurant.id, settings.FRONTEND_URL)
         if qr_data:
             results.append(QRCodeResponse(**qr_data))
     
@@ -155,7 +155,7 @@ async def update_table(
         raise HTTPException(status_code=404, detail="Table not found")
     
     tr = TableRead.model_validate(table)
-    tr.qr_code_url = f"{settings.BASE_URL.rstrip('/')}/r/qr/{table.qr_token}"
+    tr.qr_code_url = f"{settings.FRONTEND_URL.rstrip('/')}/r/qr/{table.qr_token}"
     return tr
 
 

@@ -244,16 +244,18 @@ export default function Register() {
       }
 
       setSubmitting(true);
+      let registrationTimeoutId;
       try {
         const restaurantSlug = form.slug || slugify(form.name.trim());
 
         const controller = new AbortController();
-        const timeoutId = setTimeout(() => controller.abort(), 30000);
+        registrationTimeoutId = setTimeout(() => controller.abort(), 30000);
 
         const response = await fetch(`${import.meta.env.VITE_API_URL || '/api/v1'}/restaurant/onboarding`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json',
+            'ngrok-skip-browser-warning': 'true',
             'Authorization': `Bearer ${localStorage.getItem('access_token')}`
           },
           body: JSON.stringify({
@@ -269,7 +271,7 @@ export default function Register() {
           signal: controller.signal
         });
 
-        clearTimeout(timeoutId);
+        clearTimeout(registrationTimeoutId);
 
         if (!response.ok) {
           const data = await response.json().catch(() => ({}));
@@ -286,7 +288,7 @@ export default function Register() {
         toast({ title: 'Estabelecimento criado', description: 'Bem-vindo ao seu painel.' });
         navigate('/', { replace: true });
       } catch (err) {
-        clearTimeout(timeoutId);
+        clearTimeout(registrationTimeoutId);
         const errMsg = err?.message || err?.detail || String(err);
         if (err.name === 'AbortError' || errMsg.toLowerCase().includes('timeout')) {
           setError('A requisição demorou demais. O estabelecimento pode estar sendo criado. Tente recarregar a página.');

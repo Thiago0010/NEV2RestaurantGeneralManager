@@ -11,7 +11,11 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.deps import get_db, get_current_active_user, get_restaurant_from_user
+from app.api.deps import (
+    get_db,
+    get_current_active_user,
+    get_restaurant,
+)
 from app.core.config import settings
 from app.core.mercadopago import (
     all_plans,
@@ -34,6 +38,11 @@ from app.schemas.billing import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(tags=["billing"])
+
+
+def _enum_value(value: Any) -> str:
+    """Return enum values consistently for SQLite and PostgreSQL models."""
+    return value.value if hasattr(value, "value") else str(value)
 
 
 # ---------------------------------------------------------------------------
@@ -64,7 +73,7 @@ async def list_plans() -> PlanListResponse:
 )
 async def create_checkout(
     body: CheckoutRequest,
-    restaurant: Restaurant = Depends(get_restaurant_from_user),
+    restaurant: Restaurant = Depends(get_restaurant),
     db: AsyncSession = Depends(get_db),
 ) -> CheckoutResponse:
     """Create a Mercado Pago Checkout Pro preference and return its URL.
@@ -123,19 +132,22 @@ async def open_portal(
 
 @router.get("/status", response_model=BillingStatus)
 async def get_billing_status(
-    restaurant: Restaurant = Depends(get_restaurant_from_user),
+    restaurant: Restaurant = Depends(get_restaurant),
 ) -> BillingStatus:
     """Return the current billing state for the authenticated restaurant."""
     days_until_renewal: Optional[int] = None
     if restaurant.current_period_end:
-        delta = restaurant.current_period_end - datetime.now(timezone.utc)
+        period_end = restaurant.current_period_end
+        if period_end.tzinfo is None:
+            period_end = period_end.replace(tzinfo=timezone.utc)
+        delta = period_end - datetime.now(timezone.utc)
         days_until_renewal = max(0, delta.days)
 
     is_trial = restaurant.plan_status == PlanStatus.TRIALING
 
     return BillingStatus(
-        plan_name=restaurant.plan_name.value,
-        plan_status=restaurant.plan_status.value,
+        plan_name=_enum_value(restaurant.plan_name),
+        plan_status=_enum_value(restaurant.plan_status),
         current_period_end=restaurant.current_period_end,
         cancel_at_period_end=restaurant.cancel_at_period_end,
         trial_end=restaurant.trial_end,
@@ -169,12 +181,16 @@ async def mercadopago_webhook(
     # Coerce payment_id: it can be a string, an int, or a UUID-shaped id
     # depending on the topic.
     payment_id: Optional[str] = None
-    topic = payload.get("topic") or payload.get("type")
+    topic = payload.get("topic") or payload.get("type") or request.query_params.get("type")
     data = payload.get("data") or {}
     if isinstance(data, dict):
         payment_id = data.get("id")
     if not payment_id:
         payment_id = payload.get("id")
+    # Mercado Pago may send a notification with an empty body and put the
+    # payment id in the query string as ``data.id``.
+    if not payment_id:
+        payment_id = request.query_params.get("data.id") or request.query_params.get("id")
     if payment_id is not None:
         payment_id = str(payment_id)
     logger.info(f"Mercado Pago webhook: payment_id={payment_id}, topic={topic}")

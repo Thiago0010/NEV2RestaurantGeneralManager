@@ -109,7 +109,7 @@ async def create_checkout_preference(
     # we never send a malformed URL like "None/settings?checkout=success" or
     # "http://localhost:5173//settings?...\" which makes MP reject the
     # preference with "auto_return invalid. back_url.success must be defined".
-    frontend_base = (settings.FRONTEND_URL or settings.BASE_URL or "").rstrip("/")
+    frontend_base = (settings.FRONTEND_URL or settings.BACKEND_URL or "").rstrip("/")
     if not frontend_base:
         raise RuntimeError(
             "FRONTEND_URL (or BASE_URL) is not configured — cannot build "
@@ -160,7 +160,7 @@ async def create_checkout_preference(
             "plan": plan,
         },
         "notification_url": (
-            f"{settings.BASE_URL}/api/v1/billing/webhooks/mercadopago"
+            f"{settings.BACKEND_URL}/api/v1/billing/webhooks/mercadopago"
         ),
     }
 

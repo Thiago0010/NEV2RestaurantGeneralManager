@@ -50,10 +50,7 @@ def upgrade() -> None:
         "employees",
         sa.Column(
             "role",
-            sa.Enum(
-                "owner", "manager", "waiter", "kitchen",
-                name="userrole",
-            ),
+            sa.String(length=20),
             nullable=False,
             server_default="waiter",
         ),

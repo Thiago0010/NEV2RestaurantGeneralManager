@@ -71,7 +71,7 @@ async def get_current_active_user(
     return current_user
 
 
-async def get_restaurant_from_user(
+async def get_restaurant(
     current_user: User = Depends(get_current_active_user),
     db: AsyncSession = Depends(get_db)
 ) -> Restaurant:
@@ -86,6 +86,12 @@ async def get_restaurant_from_user(
     if not restaurant:
         raise HTTPException(status_code=404, detail="Restaurant not found")
 
+    return restaurant
+
+
+async def get_restaurant_from_user(
+    restaurant: Restaurant = Depends(get_restaurant),
+) -> Restaurant:
     if restaurant.plan_status not in [PlanStatus.ACTIVE, PlanStatus.TRIALING]:
         raise HTTPException(
             status_code=status.HTTP_402_PAYMENT_REQUIRED,

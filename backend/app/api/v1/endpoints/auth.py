@@ -69,6 +69,7 @@ class ResetPasswordRequest(BaseModel):
 @router.post("/register", response_model=Token, dependencies=[Depends(stricter_rate_limit)])
 async def register(
     data: Annotated[RegisterRequest, Body()],
+    request: Request,
     db: AsyncSession = Depends(get_db)
 ):
     """Register a new restaurant owner"""
@@ -99,6 +100,7 @@ async def register(
         email=data.email,
         password=data.password,
         full_name=data.full_name,
+        request=request,
         restaurant_data=restaurant_data
     )
 

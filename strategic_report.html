@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Relatório Estratégico: Roadmap para o Milhão | NEV² Manager</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Poppins:wght@600;700;800&display=swap" rel="stylesheet">
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        corporate: {
+                            50: '#f8fafc',
+                            100: '#f1f5f9',
+                            200: '#e2e8f0',
+                            300: '#cbd5e1',
+                            400: '#94a3b8',
+                            500: '#64748b',
+                            600: '#475569',
+                            700: '#334155',
+                            800: '#1e293b',
+                            900: '#0f172a',
+                        },
+                        accent: '#2563eb'
+                    },
+                    fontFamily: {
+                        heading: ['Poppins', 'sans-serif'],
+                        body: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body { background-color: #f8fafc; color: #1e293b; }
+        .report-card {
+            background: white;
+            border: 1px solid #e2e8f0;
+            transition: all 0.3s ease;
+        }
+        .report-card:hover { border-color: #2563eb; box-shadow: 0 10px 30px -10px rgba(37, 99, 235, 0.1); }
+        .gradient-text {
+            background: linear-gradient(to right, #0f172a, #2563eb);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        .step-number {
+            background: #2563eb;
+            color: white;
+            width: 32px;
+            height: 32px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: bold;
+            font-size: 0.875rem;
+        }
+    </style>
+</head>
+<body class="font-body antialiased">
+
+    <!-- Header -->
+    <header class="bg-corporate-900 text-white py-16 px-6 text-center">
+        <div class="max-w-4xl mx-auto">
+            <div class="inline-block px-3 py-1 bg-accent text-xs font-bold rounded-full mb-4 tracking-widest uppercase">Documento Confidencial</div>
+            <h1 class="font-heading text-4xl md:text-6xl font-extrabold mb-6">Roadmap Estratégico:<br>Transformando o NEV² em um Negócio Milionário</h1>
+            <p class="text-corporate-300 text-lg md:text-xl opacity-80 leading-relaxed">
+                Análise de escalabilidade, monetização e expansão de mercado para a transição de um software de gestão para uma plataforma de ecossistema gastronômico.
+            </p>
+        </div>
+    </header>
+
+    <main class="max-w-5xl mx-auto px-6 py-16">
+
+        <!-- Executive Summary -->
+        <section class="mb-20">
+            <div class="flex items-center gap-4 mb-8">
+                <div class="w-2 h-8 bg-accent"></div>
+                <h2 class="font-heading text-3xl font-bold text-corporate-900">Sumário Executivo</h2>
+            </div>
+            <div class="bg-white p-8 rounded-3xl border border-corporate-200 shadow-sm leading-relaxed text-corporate-700">
+                <p class="mb-4">
+                    O <strong>NEV² Manager</strong> já possui a base técnica necessária (Multi-tenancy, Real-time, QR Menu). No entanto, para atingir a escala de milhões, o foco deve mudar de <span class="font-bold text-corporate-900">"Funcionalidades"</span> para <span class="font-bold text-corporate-900">"Geração de Valor Financeiro"</span> para o dono do restaurante.
+                </p>
+                <p>
+                    O segredo de empresas como iFood ou Toast não é apenas a gestão, mas o controle do <strong>fluxo de dinheiro (Pagamentos)</strong> e a <strong>estatística de consumo (Dados)</strong>. O plano a seguir detalha a transição de uma ferramenta de apoio para um sistema indispensável de lucro.
+                </p>
+            </div>
+        </section>
+
+        <!-- The 4 Pillars of Scaling -->
+        <section class="mb-20">
+            <div class="flex items-center gap-4 mb-12">
+                <div class="w-2 h-8 bg-accent"></div>
+                <h2 class="font-heading text-3xl font-bold text-corporate-900">Os 4 Pilares da Escala Milionária</h2>
+            </div>
+
+            <div class="grid md:grid-cols-2 gap-8">
+                <!-- Pillar 1 -->
+                <div class="report-card p-8 rounded-3xl">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="step-number">1</div>
+                        <h3 class="font-heading font-bold text-xl text-corporate-900">Domínio do Checkout (Fintech)</h3>
+                    </div>
+                    <p class="text-corporate-600 text-sm mb-6 leading-relaxed">
+                        Atualmente, o sistema gerencia o pedido. Para lucrar milhões, ele deve gerenciar o <strong>pagamento</strong>.
+                    </p>
+                    <ul class="space-y-3">
+                        <li class="flex items-start gap-3 text-sm text-corporate-700">
+                            <svg class="w-5 h-5 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <strong>Integração de Pagamentos:</strong> Pix e Cartão integrados ao app.
+                        </li>
+                        <li class="flex items-start gap-3 text-sm text-corporate-700">
+                            <svg class="w-5 h-5 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <strong>Split de Pagamento:</strong> Cobrar uma pequena porcentagem por transação processada.
+                        </li>
+                        <li class="flex items-start gap-3 text-sm text-corporate-700">
+                            <svg class="w-5 h-5 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <strong>Fechamento Automático:</strong> Eliminar a necessidade de o garçom levar a maquininha.
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Pillar 2 -->
+                <div class="report-card p-8 rounded-3xl">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="step-number">2</div>
+                        <h3 class="font-heading font-bold text-xl text-corporate-900">Inteligência de Dados (IA)</h3>
+                    </div>
+                    <p class="text-corporate-600 text-sm mb-6 leading-relaxed">
+                        Mude de "Relatórios de Vendas" para "Consultoria de Lucro Automática".
+                    </p>
+                    <ul class="space-y-3">
+                        <li class="flex items-start gap-3 text-sm text-corporate-700">
+                            <svg class="w-5 h-5 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <strong>Engenharia de Cardápio:</strong> IA que sugere aumentar o preço de pratos com alta demanda e baixa margem.
+                        </li>
+                        <li class="flex items-start gap-3 text-sm text-corporate-700">
+                            <svg class="w-5 h-5 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <strong>Previsão de Demanda:</strong> Notificar o dono sobre a necessidade de mais insumos baseado em datas comemorativas.
+                        </li>
+                        <li class="flex items-start gap-3 text-sm text-corporate-700">
+                            <svg class="w-5 h-5 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <strong>CRM de Clientes:</strong> Saber quem é o cliente fiel e disparar cupons automáticos via WhatsApp.
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Pillar 3 -->
+                <div class="report-card p-8 rounded-3xl">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="step-number">3</div>
+                        <h3 class="font-heading font-bold text-xl text-corporate-900">Expansão B2B (White Label)</h3>
+                    </div>
+                    <p class="text-corporate-600 text-sm mb-6 leading-relaxed">
+                        Pare de vender apenas para o restaurante pequeno; venda para a rede.
+                    </p>
+                    <ul class="space-y-3">
+                        <li class="flex items-start gap-3 text-sm text-corporate-700">
+                            <svg class="w-5 h-5 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <strong>Modelo Franquia:</strong> Criar um painel "Master" para donos de redes gerenciarem 10+ unidades.
+                        </li>
+                        <li class="flex items-start gap-3 text-sm text-corporate-700">
+                            <svg class="w-5 h-5 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <strong>White Label:</strong> Vender a tecnologia para outras empresas de consultoria gastronômica.
+                        </li>
+                        <li class="flex items-start gap-3 text-sm text-corporate-700">
+                            <svg class="w-5 h-5 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <strong>Integração com Delivery:</strong> Unificar iFood/UberEats no mesmo painel do NEV².
+                        </li>
+                    </ul>
+                </div>
+
+                <!-- Pillar 4 -->
+                <div class="report-card p-8 rounded-3xl">
+                    <div class="flex items-center gap-3 mb-6">
+                        <div class="step-number">4</div>
+                        <h3 class="font-heading font-bold text-xl text-corporate-900">Ecossistema de Fidelidade</h3>
+                    </div>
+                    <p class="text-corporate-600 text-sm mb-6 leading-relaxed">
+                        Transforme o sistema em uma ferramenta de marketing para o cliente final.
+                    </p>
+                    <ul class="space-y-3">
+                        <li class="flex items-start gap-3 text-sm text-corporate-700">
+                            <svg class="w-5 h-5 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <strong>Cashback Integrado:</strong> O cliente ganha pontos ao pedir via QR Code.
+                        </li>
+                        <li class="flex items-start gap-3 text-sm text-corporate-700">
+                            <svg class="w-5 h-5 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <strong>Gamificação:</strong> "Complete 5 pedidos este mês e ganhe uma sobremesa".
+                        </li>
+                        <li class="flex items-start gap-3 text-sm text-corporate-700">
+                            <svg class="w-5 h-5 text-accent shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                            <strong>Clube de Assinatura:</strong> Permitir que restaurantes criem planos mensais (ex: Café da manhã ilimitado).
+                        </li>
+                    </ul>
+                </div>
+            </div>
+        </section>
+
+        <!-- Monetization Matrix -->
+        <section class="mb-20">
+            <div class="flex items-center gap-4 mb-12">
+                <div class="w-2 h-8 bg-accent"></div>
+                <h2 class="font-heading text-3xl font-bold text-corporate-900">Matriz de Monetização</h2>
+            </div>
+            <div class="overflow-hidden rounded-3xl border border-corporate-200 shadow-sm">
+                <table class="w-full text-left border-collapse">
+                    <thead class="bg-corporate-100 text-corporate-900 font-bold text-sm uppercase tracking-wider">
+                        <tr>
+                            <th class="px-6 py-4">Modelo</th>
+                            <th class="px-6 py-4">Como funciona</th>
+                            <th class="px-6 py-4">Potencial de Lucro</th>
+                        </tr>
+                    </thead>
+                    <tbody class="bg-white divide-y divide-corporate-100">
+                        <tr>
+                            <td class="px-6 py-4 font-semibold text-corporate-900">SaaS (Mensalidade)</td>
+                            <td class="px-6 py-4 text-sm text-corporate-600">Planos fixos por número de mesas/unidades.</td>
+                            <td class="px-6 py-4 text-sm font-medium text-accent">Recorrente / Estável</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-semibold text-corporate-900">Transaction Fee</td>
+                            <td class="px-6 py-4 text-sm text-corporate-600">Cobrar X% sobre cada pagamento processado no app.</td>
+                            <td class="px-6 py-4 text-sm font-medium text-accent">Exponencial (Escala com o volume)</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-semibold text-corporate-900">Setup Fee</td>
+                            <td class="px-6 py-4 text-sm text-corporate-600">Taxa única para implementação e treinamento.</td>
+                            <td class="px-6 py-4 text-sm font-medium text-accent">Imediato (Cashflow inicial)</td>
+                        </tr>
+                        <tr>
+                            <td class="px-6 py-4 font-semibold text-corporate-900">Add-ons de IA</td>
+                            <td class="px-6 py-4 text-sm text-corporate-600">Cobrar extra por módulos de BI e Predição de Demanda.</td>
+                            <td class="px-6 py-4 text-sm font-medium text-accent">Margem Alta (Valor Agregado)</td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- Final Action Plan -->
+        <section class="mb-20">
+            <div class="bg-corporate-900 text-white p-10 rounded-[3rem] shadow-2xl relative overflow-hidden">
+                <div class="relative z-10">
+                    <h2 class="font-heading text-3xl font-bold mb-8 text-center">Plano de Ação Imediato (Próximos 90 dias)</h2>
+                    <div class="grid md:grid-cols-3 gap-8">
+                        <div class="bg-white/10 p-6 rounded-2xl backdrop-blur-sm border border-white/10">
+                            <div class="font-bold text-accent mb-2">Mês 1: Validação</div>
+                            <p class="text-sm text-corporate-200 opacity-80 leading-relaxed">Refinar UX do checkout e integrar a primeira API de pagamentos (Stripe/Mercado Pago). Testar com 2 clientes reais.</p>
+                        </div>
+                        <div class="bg-white/10 p-6 rounded-2xl backdrop-blur-sm border border-white/10">
+                            <div class="font-bold text-accent mb-2">Mês 2: Tração</div>
+                            <p class="text-sm text-corporate-200 opacity-80 leading-relaxed">Lançar modelo de preços baseado em transações. Implementar o módulo básico de BI para os donos.</p>
+                        </div>
+                        <div class="bg-white/10 p-6 rounded-2xl backdrop-blur-sm border border-white/10">
+                            <div class="font-bold text-accent mb-2">Mês 3: Escala</div>
+                            <p class="text-sm text-corporate-200 opacity-80 leading-relaxed">Criar a oferta para "Redes de Restaurantes" (Multi-tenant Master) e iniciar a prospecção B2B ativa.</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="absolute top-0 right-0 w-64 h-64 bg-accent/20 rounded-full blur-[100px] -mr-32 -mt-32"></div>
+                <div class="absolute bottom-0 left-0 w-64 h-64 bg-accent/10 rounded-full blur-[100px] -ml-32 -mb-32"></div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="py-12 px-6 text-center border-t border-corporate-200">
+        <p class="text-corporate-500 text-sm font-medium">
+            Relatório Gerado Estrategicamente para <strong>[NEV]²Thi_ii</strong> &bull; 2026
+        </p>
+    </footer>
+
+</body>
+</html>

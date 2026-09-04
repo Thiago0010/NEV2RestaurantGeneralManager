@@ -1,6 +1,6 @@
 import re
 import unicodedata
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Optional
 
 
@@ -54,8 +54,8 @@ def time_ago(date: Optional[datetime]) -> str:
 
 
 def today_iso() -> datetime:
-    """Return today as datetime object"""
-    return datetime.now()
+    """Return today as datetime object with UTC timezone"""
+    return datetime.now(timezone.utc)
 
 
 def is_today(date: datetime) -> bool:

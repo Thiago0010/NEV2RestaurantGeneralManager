@@ -67,6 +67,11 @@ async function request(endpoint, options = {}) {
     'Content-Type': 'application/json',
     ...options.headers,
   };
+
+  // Bypass the free ngrok browser interstitial when the API uses a tunnel.
+  if (/\.ngrok-free\.dev(?:\/|$)/i.test(API_BASE_URL)) {
+    headers['ngrok-skip-browser-warning'] = 'true';
+  }
   
   // Add auth token if available
   const token = localStorage.getItem('access_token');

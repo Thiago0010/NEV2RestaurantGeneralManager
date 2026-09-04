@@ -46,10 +46,6 @@ async def create_restaurant_onboarding(
     """Create restaurant for authenticated user (onboarding step)"""
     # If user already has a restaurant, just return it (prevents duplicate errors)
     if current_user.restaurant_id:
-        restaurant = await RestaurantService(db).get_by_id(current_user.restaurant_id, current_user.restaurant_id) # This is wrong, get_by_id takes (id, restaurant_id)
-        # Wait, RestaurantService.get_by_id is get_by_id(self, restaurant_id: UUID)
-        # Let's fix it.
-        from app.services.crud import RestaurantService
         res = await RestaurantService(db).get_by_id(current_user.restaurant_id)
         if res:
             return RestaurantRead.model_validate(res)
@@ -57,6 +53,13 @@ async def create_restaurant_onboarding(
     # Create restaurant
     restaurant_data = data.model_dump()
     restaurant_data["owner_id"] = current_user.id
+
+    # Ensure plan enums use lower-case values to match PostgreSQL enum requirements
+    if "plan_name" in restaurant_data and restaurant_data["plan_name"]:
+        restaurant_data["plan_name"] = restaurant_data["plan_name"].lower()
+    if "plan_status" in restaurant_data and restaurant_data["plan_status"]:
+        restaurant_data["plan_status"] = restaurant_data["plan_status"].lower()
+
     restaurant = Restaurant(**restaurant_data)
     db.add(restaurant)
     await db.flush()

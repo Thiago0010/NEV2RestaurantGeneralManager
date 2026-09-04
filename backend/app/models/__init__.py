@@ -130,14 +130,14 @@ class Restaurant(Base):
 
     # ---- Mercado Pago / billing ------------------------------------------
     plan_name: Mapped[PlanName] = mapped_column(
-        Enum(PlanName, name="planname"),
-        default=PlanName.NONE,
+        String(20),
+        default=PlanName.NONE.value,
         nullable=False,
         index=True,
     )
     plan_status: Mapped[PlanStatus] = mapped_column(
-        Enum(PlanStatus, name="planstatus"),
-        default=PlanStatus.NONE,
+        String(20),
+        default=PlanStatus.NONE.value,
         nullable=False,
         index=True,
     )
@@ -219,7 +219,7 @@ class User(Base):
         Boolean, default=False, nullable=False
     )
     role: Mapped[UserRole] = mapped_column(
-        Enum(UserRole, name="userrole"), nullable=False, default=UserRole.OWNER
+        String(20), nullable=False, default=UserRole.OWNER.value
     )
     restaurant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("restaurants.id"), nullable=True
@@ -329,10 +329,10 @@ class Table(Base):
     )
     number: Mapped[str] = mapped_column(String(10), nullable=False)
     seats: Mapped[int] = mapped_column(Integer, nullable=False, default=4)
-    status: Mapped[TableStatus] = mapped_column(
-        Enum(TableStatus, name="tablestatus"),
+    status: Mapped[str] = mapped_column(
+        String(20),
         nullable=False,
-        default=TableStatus.FREE,
+        default=TableStatus.FREE.value,
     )
     qr_token: Mapped[str] = mapped_column(
         String(255), unique=True, index=True, nullable=False
@@ -371,10 +371,10 @@ class Order(Base):
         PGUUID(as_uuid=True), ForeignKey("tables.id"), nullable=True
     )
     table_number: Mapped[str] = mapped_column(String(10), nullable=False)
-    status: Mapped[OrderStatus] = mapped_column(
-        Enum(OrderStatus, name="orderstatus"),
+    status: Mapped[str] = mapped_column(
+        String(20),
         nullable=False,
-        default=OrderStatus.RECEIVED,
+        default=OrderStatus.RECEIVED.value,
     )
     subtotal: Mapped[float] = mapped_column(
         Numeric(10, 2), nullable=False, default=0
@@ -462,9 +462,9 @@ class Employee(Base):
     )
     name: Mapped[str] = mapped_column(String(255), nullable=False, default="")
     role: Mapped[UserRole] = mapped_column(
-        Enum(UserRole, name="userrole"),
+        String(20),
         nullable=False,
-        default=UserRole.WAITER,
+        default=UserRole.WAITER.value,
     )
     phone: Mapped[Optional[str]] = mapped_column(String(20), nullable=True)
     hire_date: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
@@ -624,8 +624,8 @@ class AuditLog(Base):
     user_id: Mapped[uuid.UUID] = mapped_column(
         PGUUID(as_uuid=True), ForeignKey("users.id"), nullable=False
     )
-    restaurant_id: Mapped[uuid.UUID] = mapped_column(
-        PGUUID(as_uuid=True), ForeignKey("restaurants.id"), nullable=False
+    restaurant_id: Mapped[Optional[uuid.UUID]] = mapped_column(
+        PGUUID(as_uuid=True), ForeignKey("restaurants.id"), nullable=True
     )
     action: Mapped[str] = mapped_column(String(255), nullable=False)
     details: Mapped[Optional[str]] = mapped_column(Text, nullable=True)

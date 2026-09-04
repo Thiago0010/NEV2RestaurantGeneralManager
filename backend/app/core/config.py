@@ -77,9 +77,9 @@ class Settings(BaseSettings):
         "http://127.0.0.1:5173",
     ]
 
-    # ---------------------------------------------------------- Base URL
-    BASE_URL: str = Field(
-        default="http://localhost:5173", validation_alias="BASE_URL"
+    # ---------------------------------------------------------- Backend URL
+    BACKEND_URL: str = Field(
+        default="http://localhost:8000", validation_alias="BACKEND_URL"
     )
 
     # ----------------------------------------------------- Mercado Pago

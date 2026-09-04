@@ -21,6 +21,7 @@ class AuthService:
         email: str,
         password: str,
         full_name: str,
+        request: Request,
         restaurant_data: Optional[RestaurantCreate] = None
     ) -> tuple[User, Optional[Restaurant], str]:
         # Check if email exists
@@ -35,7 +36,7 @@ class AuthService:
                 email=email,
                 hashed_password=get_password_hash(password),
                 full_name=full_name,
-                role=UserRole.OWNER,
+                role=UserRole.OWNER.value,
                 restaurant_id=None,
                 is_active=True,
             )
@@ -76,17 +77,16 @@ class AuthService:
                 email=email,
                 hashed_password=get_password_hash(password),
                 full_name=full_name,
-                role=UserRole.OWNER,
+                role=UserRole.OWNER.value,
                 restaurant_id=None,
                 is_active=True,
             )
             self.db.add(user)
             await self.db.flush()
 
-        # Create access token
-        token = create_access_token(
-            data={"sub": str(user.id), "restaurant_id": str(restaurant.id) if restaurant else None, "role": user.role.value}
-        )
+        # Create access token and session
+        token = await self._create_user_session(user, request)
+
 
         return user, restaurant, token
     
@@ -109,21 +109,32 @@ class AuthService:
         user.last_login = today_iso()
 
         # 1. Audit Log
+        # Find restaurant_id for audit log
+        restaurant_id = user.restaurant_id
+        if not restaurant_id:
+            res = await self.db.execute(select(Restaurant).where(Restaurant.owner_id == user.id))
+            restaurant = res.scalar_one_or_none()
+            restaurant_id = restaurant.id if restaurant else None
+
         audit = AuditLog(
             user_id=user.id,
-            restaurant_id=user.restaurant_id if user.restaurant_id else (await self.db.execute(select(Restaurant).where(Restaurant.owner_id == user.id))).scalar_one_or_none().id,
+            restaurant_id=restaurant_id,
             action="LOGIN",
-            details=f"Login successful via {request.client.host}",
-            ip_address=request.client.host,
+            details=f"Login successful via {request.client.host if request.client else 'unknown'}",
+            ip_address=request.client.host if request.client else "unknown",
             device=request.headers.get("user-agent"),
         )
         self.db.add(audit)
 
         # 2. Handle Concurrent Sessions
-        # We first generate the token and extract the JTI (which we added in security.py)
+        token = await self._create_user_session(user, request)
+
+        return user, token
+
+    async def _create_user_session(self, user: User, request: Request) -> str:
         from jose import jwt
         token = create_access_token(
-            data={"sub": str(user.id), "restaurant_id": str(user.restaurant_id) if user.restaurant_id else None, "role": user.role.value}
+            data={"sub": str(user.id), "restaurant_id": str(user.restaurant_id) if user.restaurant_id else None, "role": user.role}
         )
         payload = jwt.decode(token, settings.SECRET_KEY, algorithms=[settings.ALGORITHM])
         jti = payload.get("jti")
@@ -141,12 +152,11 @@ class AuthService:
         new_session = UserSession(
             user_id=user.id,
             token_jti=jti,
-            ip_address=request.client.host,
+            ip_address=request.client.host if request.client else "unknown",
             device=request.headers.get("user-agent"),
         )
         self.db.add(new_session)
-
-        return user, token
+        return token
     
     async def create_staff(
         self,

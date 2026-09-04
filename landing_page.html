@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="pt-br" class="scroll-smooth">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>NEV² | Sistema de Gestão de Restaurantes</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700;800&family=Inter:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.5/ScrollTrigger.min.js"></script>
+
+    <script>
+        tailwind.config = {
+            theme: {
+                extend: {
+                    colors: {
+                        brand: {
+                            50: '#f0f7ff',
+                            100: '#e0effe',
+                            200: '#b3d7ff',
+                            300: '#80bfff',
+                            400: '#3b82f6',
+                            500: '#2563eb',
+                            600: '#1d4ed8',
+                            700: '#1e40af',
+                            800: '#1e3a8a',
+                            900: '#172554',
+                        },
+                        dark: '#0f172a',
+                        darker: '#020617',
+                    },
+                    fontFamily: {
+                        heading: ['Poppins', 'sans-serif'],
+                        body: ['Inter', 'sans-serif'],
+                    }
+                }
+            }
+        }
+    </script>
+    <style>
+        body {
+            background-color: #f8fafc;
+            color: #1e293b;
+            overflow-x: hidden;
+        }
+        .bg-grid {
+            background-image: radial-gradient(circle, #cbd5e1 1px, transparent 1px);
+            background-size: 30px 30px;
+        }
+        .card-shadow {
+            box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.05), 0 8px 10px -6px rgba(0, 0, 0, 0.05);
+        }
+        .step-line {
+            position: absolute;
+            top: 2rem;
+            left: 0;
+            right: 0;
+            height: 2px;
+            background: #e2e8f0;
+            z-index: 0;
+        }
+        .hero-mockup {
+            perspective: 1000px;
+        }
+        .mockup-inner {
+            transform: rotateX(10deg) rotateY(-10deg) rotateZ(2deg);
+            transition: transform 0.3s ease-out;
+        }
+        .mockup-inner:hover {
+            transform: rotateX(0deg) rotateY(0deg) rotateZ(0deg);
+        }
+    </style>
+</head>
+<body class="font-body">
+
+    <!-- Navbar -->
+    <nav class="fixed top-0 w-full z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 px-6 py-4">
+        <div class="max-w-7xl mx-auto flex items-center justify-between">
+            <div class="flex items-center gap-2">
+                <div class="w-8 h-8 bg-brand-600 rounded-lg flex items-center justify-center font-heading font-bold text-white">N²</div>
+                <span class="font-heading font-bold text-xl tracking-tight text-dark">NEV² <span class="text-brand-600">Manager</span></span>
+            </div>
+            <div class="hidden md:flex items-center gap-8 text-sm font-medium text-slate-600">
+                <a href="#funcionalidades" class="hover:text-brand-600 transition-colors">Funcionalidades</a>
+                <a href="#como-funciona" class="hover:text-brand-600 transition-colors">Como Funciona</a>
+                <a href="#planos" class="hover:text-brand-600 transition-colors">Planos</a>
+                <a href="#faq" class="hover:text-brand-600 transition-colors">FAQ</a>
+            </div>
+            <a href="#cta" class="bg-brand-600 hover:bg-brand-700 text-white px-6 py-2 rounded-full text-sm font-semibold transition-all shadow-md">
+                Teste Grátis
+            </a>
+        </div>
+    </nav>
+
+    <!-- Hero Section -->
+    <section class="relative pt-32 pb-20 px-6 overflow-hidden">
+        <div class="absolute inset-0 bg-grid -z-10 opacity-50"></div>
+        <div class="max-w-7xl mx-auto grid lg:grid-cols-2 gap-16 items-center">
+            <div class="text-left">
+                <h1 class="font-heading text-4xl md:text-6xl font-extrabold text-dark leading-tight mb-6">
+                    Da cozinha ao caixa, <br>
+                    <span class="text-brand-600">tudo na mesma comanda.</span>
+                </h1>
+                <p class="text-slate-600 text-lg md:text-xl mb-10 leading-relaxed">
+                    O sistema de gestão mais intuitivo para restaurantes. Automatize pedidos via QR Code, sincronize a cozinha em tempo real e tenha controle total do seu faturamento.
+                </p>
+                <div class="flex flex-col sm:flex-row gap-4">
+                    <a href="#cta" class="bg-brand-600 hover:bg-brand-700 text-white px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-xl shadow-brand-200 text-center">
+                        Começar Agora
+                    </a>
+                    <a href="#como-funciona" class="bg-white hover:bg-slate-50 text-dark border border-slate-200 px-8 py-4 rounded-xl font-bold text-lg transition-all text-center">
+                        Ver Como Funciona
+                    </a>
+                </div>
+            </div>
+
+            <div class="hero-mockup relative">
+                <div class="mockup-inner relative bg-white rounded-2xl shadow-2xl border border-slate-200 p-4 w-full max-w-lg mx-auto">
+                    <!-- Fake App UI -->
+                    <div class="bg-slate-50 rounded-lg overflow-hidden border border-slate-100">
+                        <div class="bg-white border-b border-slate-200 p-3 flex justify-between items-center">
+                            <span class="text-xs font-bold text-slate-500">Mapa de Mesas - Setor A</span>
+                            <div class="flex gap-1">
+                                <div class="w-2 h-2 bg-green-500 rounded-full"></div>
+                                <div class="w-2 h-2 bg-red-500 rounded-full"></div>
+                            </div>
+                        </div>
+                        <div class="p-4 grid grid-cols-3 gap-4">
+                            <!-- Tables -->
+                            <div class="aspect-square bg-green-100 border-2 border-green-500 rounded-xl flex flex-col items-center justify-center text-green-700 font-bold">
+                                <span class="text-xs">Mesa 01</span>
+                                <span class="text-lg">Livre</span>
+                            </div>
+                            <div class="aspect-square bg-red-100 border-2 border-red-500 rounded-xl flex flex-col items-center justify-center text-red-700 font-bold relative">
+                                <span class="text-xs">Mesa 02</span>
+                                <span class="text-lg">Ocupada</span>
+                                <span class="absolute -top-2 -right-2 w-5 h-5 bg-brand-600 text-white text-[10px] rounded-full flex items-center justify-center">!</span>
+                            </div>
+                            <div class="aspect-square bg-green-100 border-2 border-green-500 rounded-xl flex flex-col items-center justify-center text-green-700 font-bold">
+                                <span class="text-xs">Mesa 03</span>
+                                <span class="text-lg">Livre</span>
+                            </div>
+                            <div class="aspect-square bg-red-100 border-2 border-red-500 rounded-xl flex flex-col items-center justify-center text-red-700 font-bold">
+                                <span class="text-xs">Mesa 04</span>
+                                <span class="text-lg">Ocupada</span>
+                            </div>
+                            <div class="aspect-square bg-red-100 border-2 border-red-500 rounded-xl flex flex-col items-center justify-center text-red-700 font-bold">
+                                <span class="text-xs">Mesa 05</span>
+                                <span class="text-lg">Ocupada</span>
+                            </div>
+                            <div class="aspect-square bg-green-100 border-2 border-green-500 rounded-xl flex flex-col items-center justify-center text-green-700 font-bold">
+                                <span class="text-xs">Mesa 06</span>
+                                <span class="text-lg">Livre</span>
+                            </div>
+                        </div>
+                        <div class="p-4 bg-white border-t border-slate-200">
+                            <div class="flex justify-between items-center mb-2">
+                                <span class="text-xs font-semibold text-slate-500">Pedidos Recentes</span>
+                                <span class="text-[10px] text-brand-600 font-bold">Ver tudo</span>
+                            </div>
+                            <div class="space-y-2">
+                                <div class="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                    <span class="text-xs font-medium">Mesa 02 - Hambúrguer Artesanal</span>
+                                    <span class="text-[10px] px-2 py-0.5 bg-orange-100 text-orange-600 rounded-full font-bold">Em Preparo</span>
+                                </div>
+                                <div class="flex items-center justify-between p-2 bg-slate-50 rounded-lg border border-slate-100">
+                                    <span class="text-xs font-medium">Mesa 05 - Coca-Cola + Batata</span>
+                                    <span class="text-[10px] px-2 py-0.5 bg-green-100 text-green-600 rounded-full font-bold">Pronto</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                <!-- Decorative elements -->
+                <div class="absolute -bottom-6 -left-6 w-24 h-24 bg-brand-100 rounded-full blur-3xl opacity-60"></div>
+                <div class="absolute -top-6 -right-6 w-24 h-24 bg-yellow-100 rounded-full blur-3xl opacity-60"></div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Features Section -->
+    <section id="funcionalidades" class="py-24 px-6 bg-white">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-20">
+                <h2 class="font-heading text-3xl md:text-5xl font-bold text-dark mb-6">Tudo o que você precisa <br>em um único lugar.</h2>
+                <p class="text-slate-600 text-lg max-w-2xl mx-auto">Ferramentas pensadas para eliminar a burocracia e focar no que importa: a experiência do seu cliente.</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8">
+                <!-- Feature 1 -->
+                <div class="p-8 rounded-3xl border border-slate-100 bg-slate-50 hover:bg-white hover:shadow-xl transition-all duration-300 group">
+                    <div class="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center mb-6 group-hover:bg-brand-600 group-hover:text-white transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v1m6 11h2m-6 0h-2v-3m0 3v3m-6-3h2m-2 0H8m8 0H12m0 0v3m0-3h3m-3 0H9m0 0v3m0-3h3"/></svg>
+                    </div>
+                    <h3 class="font-heading font-bold text-xl mb-4 text-dark">Cardápio Digital QR</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            Auto-atendimento via smartphone
+                        </div>
+                        <div class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            Atualização de preços em tempo real
+                        </div>
+                        <div class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            Pedidos enviados direto para a cozinha
+                        </div>
+                    </div>
+                </div>
+                <!-- Feature 2 -->
+                <div class="p-8 rounded-3xl border border-slate-100 bg-slate-50 hover:bg-white hover:shadow-xl transition-all duration-300 group">
+                    <div class="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center mb-6 group-hover:bg-brand-600 group-hover:text-white transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M13 10V3L4 14h7v7l9-11h-7z"/></svg>
+                    </div>
+                    <h3 class="font-heading font-bold text-xl mb-4 text-dark">KDS (Cozinha Digital)</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            Fim dos tickets de papel
+                        </div>
+                        <div class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            Controle de tempo de preparo
+                        </div>
+                        <div class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            Notificação instantânea ao garçom
+                        </div>
+                    </div>
+                </div>
+                <!-- Feature 3 -->
+                <div class="p-8 rounded-3xl border border-slate-100 bg-slate-50 hover:bg-white hover:shadow-xl transition-all duration-300 group">
+                    <div class="w-12 h-12 bg-brand-100 rounded-xl flex items-center justify-center mb-6 group-hover:bg-brand-600 group-hover:text-white transition-colors">
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"/></svg>
+                    </div>
+                    <h3 class="font-heading font-bold text-xl mb-4 text-dark">Gestão Financeira</h3>
+                    <div class="space-y-3">
+                        <div class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            Relatórios de vendas automáticos
+                        </div>
+                        <div class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            Controle de estoque integrado
+                        </div>
+                        <div class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            Fechamento de caixa em um clique
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- How it Works Section -->
+    <section id="como-funciona" class="py-24 px-6 bg-slate-50">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-20">
+                <h2 class="font-heading text-3xl md:text-5xl font-bold text-dark mb-6">Simples de implementar.</h2>
+                <p class="text-slate-600 text-lg max-w-2xl mx-auto">Leve seu restaurante para o digital em apenas três passos simples.</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-12 relative">
+                <div class="step-line hidden md:block"></div>
+
+                <!-- Step 1 -->
+                <div class="relative z-10 text-center group">
+                    <div class="w-16 h-16 bg-brand-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-6 shadow-lg group-hover:scale-110 transition-transform">1</div>
+                    <h4 class="font-heading font-bold text-xl mb-3 text-dark">Crie sua conta</h4>
+                    <p class="text-slate-600 leading-relaxed">Registre seu restaurante e configure seus dados básicos em poucos minutos.</p>
+                </div>
+                <!-- Step 2 -->
+                <div class="relative z-10 text-center group">
+                    <div class="w-16 h-16 bg-brand-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-6 shadow-lg group-hover:scale-110 transition-transform">2</div>
+                    <h4 class="font-heading font-bold text-xl mb-3 text-dark">Configure seu Menu</h4>
+                    <p class="text-slate-600 leading-relaxed">Adicione suas categorias, produtos e preços. Gere os QR Codes para suas mesas.</p>
+                </div>
+                <!-- Step 3 -->
+                <div class="relative z-10 text-center group">
+                    <div class="w-16 h-16 bg-brand-600 text-white rounded-full flex items-center justify-center text-2xl font-bold mx-auto mb-6 shadow-lg group-hover:scale-110 transition-transform">3</div>
+                    <h4 class="font-heading font-bold text-xl mb-3 text-dark">Comece a Atender</h4>
+                    <p class="text-slate-600 leading-relaxed">Receba pedidos em tempo real e gerencie sua cozinha com eficiência máxima.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Pricing Section -->
+    <section id="planos" class="py-24 px-6">
+        <div class="max-w-7xl mx-auto">
+            <div class="text-center mb-20">
+                <h2 class="font-heading text-3xl md:text-5xl font-bold text-dark mb-6">Planos que crescem com você.</h2>
+                <p class="text-slate-600 text-lg max-w-2xl mx-auto">Escolha a opção ideal para o tamanho do seu negócio.</p>
+            </div>
+
+            <div class="grid md:grid-cols-3 gap-8 max-w-6xl mx-auto">
+                <!-- Plan 1 -->
+                <div class="p-8 rounded-3xl border border-slate-200 bg-white card-shadow flex flex-col">
+                    <h3 class="font-heading font-bold text-xl mb-2 text-dark">Starter</h3>
+                    <p class="text-slate-500 text-sm mb-6">Para pequenos bistrôs e cafés</p>
+                    <div class="mb-8">
+                        <span class="font-heading text-4xl font-extrabold text-dark">R$ 49</span>
+                        <span class="text-slate-500">/mês</span>
+                    </div>
+                    <ul class="space-y-4 mb-10 flex-grow">
+                        <li class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            Até 5 mesas
+                        </li>
+                        <li class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            Cardápio Digital QR
+                        </li>
+                        <li class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            Suporte via E-mail
+                        </li>
+                    </ul>
+                    <a href="#cta" class="w-full py-3 px-6 rounded-xl border-2 border-slate-200 text-dark font-bold text-center hover:border-brand-600 hover:text-brand-600 transition-all">Escolher Starter</a>
+                </div>
+                <!-- Plan 2 (Featured) -->
+                <div class="p-8 rounded-3xl border-2 border-brand-600 bg-white card-shadow flex flex-col relative scale-105 z-10">
+                    <div class="absolute -top-4 left-1/2 -translate-x-1/2 bg-brand-600 text-white text-xs font-bold px-4 py-1 rounded-full">MAIS ESCOLHIDO</div>
+                    <h3 class="font-heading font-bold text-xl mb-2 text-dark">Professional</h3>
+                    <p class="text-slate-500 text-sm mb-6">Para restaurantes em crescimento</p>
+                    <div class="mb-8">
+                        <span class="font-heading text-4xl font-extrabold text-dark">R$ 99</span>
+                        <span class="text-slate-500">/mês</span>
+                    </div>
+                    <ul class="space-y-4 mb-10 flex-grow">
+                        <li class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            Até 20 mesas
+                        </li>
+                        <li class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            KDS (Cozinha Digital)
+                        </li>
+                        <li class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            Relatórios Financeiros
+                        </li>
+                        <li class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            Suporte Prioritário
+                        </li>
+                    </ul>
+                    <a href="#cta" class="w-full py-3 px-6 rounded-xl bg-brand-600 text-white font-bold text-center hover:bg-brand-700 transition-all shadow-lg shadow-brand-200">Começar Agora</a>
+                </div>
+                <!-- Plan 3 -->
+                <div class="p-8 rounded-3xl border border-slate-200 bg-white card-shadow flex flex-col">
+                    <h3 class="font-heading font-bold text-xl mb-2 text-dark">Enterprise</h3>
+                    <p class="text-slate-500 text-sm mb-6">Para redes e grandes operações</p>
+                    <div class="mb-8">
+                        <span class="font-heading text-4xl font-extrabold text-dark">Sob</span>
+                        <span class="text-slate-500">Consulta</span>
+                    </div>
+                    <ul class="space-y-4 mb-10 flex-grow">
+                        <li class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            Mesas Ilimitadas
+                        </li>
+                        <li class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            Multi-unidades (Multi-tenant)
+                        </li>
+                        <li class="flex items-center gap-3 text-slate-600 text-sm">
+                            <svg class="w-5 h-5 text-green-500" fill="currentColor" viewBox="0 0 20 20"><path d="M16.707 5.293a1 1 0 010 1.414l-8 8a1 1 0 01-1.414 0l-4-4a1 1 0 011.414-1.414L8 12.586l7.293-7.293a1 1 0 011.414 0z"/></svg>
+                            Implementação Customizada
+                        </li>
+                    </ul>
+                    <a href="#cta" class="w-full py-3 px-6 rounded-xl border-2 border-slate-200 text-dark font-bold text-center hover:border-brand-600 hover:text-brand-600 transition-all">Falar com Consultor</a>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- CTA Section -->
+    <section id="cta" class="py-24 px-6 relative overflow-hidden">
+        <div class="max-w-4xl mx-auto text-center relative z-10 bg-brand-600 rounded-[3rem] p-12 md:p-20 shadow-2xl shadow-brand-300">
+            <h2 class="font-heading text-4xl md:text-6xl font-bold text-white mb-8">Pronto para digitalizar <br>seu restaurante?</h2>
+            <p class="text-brand-100 text-lg mb-12 max-w-2xl mx-auto opacity-90">
+                Junte-se aos estabelecimentos que já eliminaram o papel e aumentaram a rotatividade de mesas.
+            </p>
+            <div class="flex flex-col sm:flex-row gap-6 justify-center">
+                <a href="#" class="bg-white text-brand-600 px-10 py-4 rounded-2xl font-bold text-xl hover:bg-slate-50 transition-all shadow-lg">
+                    Criar Minha Conta Grátis
+                </a>
+                <a href="#" class="bg-brand-700 text-white px-10 py-4 rounded-2xl font-bold text-xl hover:bg-brand-800 transition-all border border-brand-500">
+                    Falar com Especialista
+                </a>
+            </div>
+        </div>
+        <div class="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-brand-200 rounded-full blur-[120px] -z-10 opacity-30"></div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="py-12 px-6 bg-slate-50 border-t border-slate-200">
+        <div class="max-w-7xl mx-auto flex flex-col md:flex-row justify-between items-center gap-8">
+            <div class="flex items-center gap-2">
+                <div class="w-6 h-6 bg-brand-600 rounded flex items-center justify-center font-heading font-bold text-white text-xs">N²</div>
+                <span class="font-heading font-bold text-lg tracking-tight text-dark">NEV² <span class="text-brand-600">Manager</span></span>
+            </div>
+            <p class="text-slate-500 text-sm">
+                &copy; 2026 [NEV]²Thi_ii. Todos os direitos reservados.
+            </p>
+            <div class="flex gap-6 text-slate-400 text-sm">
+                <a href="#" class="hover:text-brand-600 transition-colors">Privacidade</a>
+                <a href="#" class="hover:text-brand-600 transition-colors">Termos de Uso</a>
+                <a href="https://nev2dev.com" class="hover:text-brand-600 transition-colors font-bold text-brand-600">nev2dev.com</a>
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // GSAP Animations
+        function initAnimations() {
+            gsap.registerPlugin(ScrollTrigger);
+
+            // Hero animations
+            gsap.from("h1", {
+                opacity: 0,
+                y: 30,
+                duration: 1,
+                ease: "power3.out"
+            });
+
+            gsap.from("p", {
+                opacity: 0,
+                y: 20,
+                duration: 1,
+                delay: 0.2,
+                ease: "power3.out"
+            });
+
+            // Mockup animation
+            gsap.from(".mockup-inner", {
+                opacity: 0,
+                x: 50,
+                rotateY: 20,
+                duration: 1.2,
+                delay: 0.4,
+                ease: "power3.out"
+            });
+
+            // Feature cards reveal
+            gsap.from(".feature-card, #funcionalidades .p-8", {
+                scrollTrigger: {
+                    trigger: "#funcionalidades",
+                    start: "top 80%",
+                },
+                opacity: 0,
+                y: 30,
+                duration: 0.6,
+                stagger: 0.15,
+                ease: "power2.out"
+            });
+
+            // Onboarding steps
+            gsap.from("#como-funciona .relative", {
+                scrollTrigger: {
+                    trigger: "#como-funciona",
+                    start: "top 80%",
+                },
+                opacity: 0,
+                scale: 0.9,
+                duration: 0.5,
+                stagger: 0.2,
+                ease: "back.out(1.7)"
+            });
+        }
+
+        window.addEventListener('DOMContentLoaded', initAnimations);
+    </script>
+</body>
+</html>

@@ -154,6 +154,7 @@ export default function Onboarding() {
               method: 'POST',
               headers: {
                 'Content-Type': 'application/json',
+                'ngrok-skip-browser-warning': 'true',
                 'Authorization': `Bearer ${localStorage.getItem('access_token')}`
               },
               body: JSON.stringify({

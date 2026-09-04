@@ -19,3 +19,6 @@ pytest==8.3.3
 pytest-asyncio==0.23.5
 fakeredis==2.21.1
 aiosqlite==0.20.0
+aiosmtplib==2.0.2
+mercadopago==3.5.0
+email-validator==2.2.0

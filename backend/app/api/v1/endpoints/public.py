@@ -113,7 +113,7 @@ async def get_public_table(
         raise HTTPException(status_code=404, detail="Table not found")
     
     tr = TableRead.model_validate(table)
-    tr.qr_code_url = f"{settings.BASE_URL.rstrip('/')}/r/qr/{table.qr_token}"
+    tr.qr_code_url = f"{settings.FRONTEND_URL.rstrip('/')}/r/qr/{table.qr_token}"
     return tr
 
 
